@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scripty — continuity desk</title>
+<style>
+:root{--bg:#f6f5f1;--ink:#151515;--mut:#6b6b6b;--line:#ddd;--ok:#0a7a3d;--bad:#b3261e;--warn:#9a6a00;--card:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+header{padding:20px 28px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+h1{margin:0;font-size:26px;letter-spacing:-.01em}h2{font-size:16px;margin:0 0 8px}.sub{color:var(--mut);margin:2px 0 0}
+nav a{margin-left:14px;color:var(--ink)}
+main{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 80px)}
+aside{border-right:1px solid var(--line);padding:16px;overflow:auto}
+.scene{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);margin-bottom:8px;cursor:pointer}.scene:hover{border-color:#999}.scene.sel{border-color:var(--ink)}
+.scene b{font-family:ui-monospace,monospace}.pill{display:inline-block;border-radius:999px;padding:0 8px;font-size:12px;border:1px solid var(--line);margin-left:4px}.pill.bad{color:var(--bad);border-color:#e8b4b0}
+section{padding:18px 24px;overflow:auto}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}.kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px}.kpi .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}.kpi .v{font-size:22px;font-weight:600}
+.finding{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.finding .head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.verdict{font-weight:600;padding:2px 8px;border-radius:6px;border:1px solid}.v-continuity_error{color:var(--bad);border-color:#e8b4b0;background:#fff3f2}.v-intentional_change{color:var(--warn);border-color:#e6d3a3;background:#fff9e8}.v-same,.v-uncertain{color:var(--mut)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.pair figure{margin:0}.pair img{width:100%;border-radius:6px;border:1px solid var(--line)}.pair figcaption{font-size:12px;color:var(--mut);margin-top:4px}
+.expl{margin:8px 0 0;color:#333}.mono{font-family:ui-monospace,monospace;font-size:12px;color:var(--mut)}
+.chat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:18px}.chat textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}.chat button{margin-top:8px;background:var(--ink);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}.chat pre{white-space:pre-wrap;background:#fafafa;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13px;background:var(--card)}th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}th{background:#f2f2f2}
+.muted{color:var(--mut)}.label{font-size:12px;color:var(--mut)}
+</style></head><body>
+<header><div><h1>Scripty</h1><p class="sub">Continuity desk for the script supervisor. Every finding shows the two frames it came from; the evaluation shows how often it is wrong.</p></div>
+<nav><a href="#board">Board</a><a href="#eval">Evaluation</a><a href="https://github.com/rodriguescarson/scripty" target="_blank" rel="noreferrer">Source</a></nav></header>
+<main><aside id="scenes"><p class="muted">loading scenes…</p></aside>
+<section>
+<div id="board"><p class="muted">Pick a scene.</p></div>
+<div class="chat" id="chat"><h2>Ask Scripty</h2><p class="label">The agent answers from ClickHouse through the mcp-clickhouse server (read-only SQL) and can look at a frame pair on request.</p>
+<textarea id="q" rows="2" placeholder="e.g. What changed on the table between take A and take PLANTED in scene012? Which findings are confirmed continuity errors?"></textarea>
+<button onclick="ask()">Ask</button><pre id="a" hidden></pre></div>
+<div id="eval" style="margin-top:24px"></div>
+</section></main>
+<script>
+const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let SCENES=[];
+async function loadScenes(){const r=await fetch('/api/scenes');SCENES=await r.json();
+ $('#scenes').innerHTML=SCENES.length?SCENES.map(s=>`<div class="scene" data-p="${esc(s.project)}" data-s="${esc(s.scene)}" onclick="openScene('${esc(s.project)}','${esc(s.scene)}',this)"><b>${esc(s.scene)}</b> <span class="muted">${esc(s.project)}</span><br><span class="label">${s.takes} takes · ${s.shots} shots · ${s.frames} frames</span>${s.errors?`<span class="pill bad">${s.errors} errors</span>`:''}<span class="pill">${s.findings} findings</span></div>`).join(''):'<p class="muted">No scenes ingested yet.</p>';
+ if(SCENES.length) openScene(SCENES[0].project,SCENES[0].scene,document.querySelector('.scene'));}
+async function openScene(p,s,el){document.querySelectorAll('.scene').forEach(x=>x.classList.remove('sel'));if(el)el.classList.add('sel');
+ const d=await (await fetch(`/api/scene/${p}/${s}`)).json();
+ const pos=d.findings.filter(f=>f.verdict==='continuity_error'&&f.confidence>=0.6);
+ const takes=[...new Set(d.frames.map(f=>f.take))];
+ const kp=[['scene',s],['takes',takes.join(' · ')],['frames',d.frames.length],['findings',d.findings.length],['confirmed errors',pos.length]];
+ let html=`<div class="kpis">${kp.map(([k,v])=>`<div class="kpi"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join('')}</div>`;
+ if(d.labels.length) html+=`<p class="label">Planted ground truth for this evaluation scene: ${d.labels.map(l=>esc(l.description)).join(' · ')}</p>`;
+ html+=d.findings.length?d.findings.map(f=>`<div class="finding"><div class="head"><div><span class="verdict v-${esc(f.verdict)}">${esc(f.verdict.replace('_',' '))}</span> <b>${esc(f.entity)}</b> · ${esc(f.attribute)} · <span class="mono">${esc(f.category)}</span></div><div class="mono">confidence ${Number(f.confidence).toFixed(2)} · sql ${Number(f.sql_score).toFixed(2)}</div></div>
+ <div class="pair"><figure><img loading="lazy" src="${f.url_a}" alt=""><figcaption>${esc(f.take_a)} · ${esc(f.value_a)}</figcaption></figure><figure><img loading="lazy" src="${f.url_b}" alt=""><figcaption>${esc(f.take_b)} · ${esc(f.value_b)}</figcaption></figure></div>
+ <p class="expl">${esc(f.explanation)}</p></div>`).join(''):'<p class="muted">No findings yet for this scene.</p>';
+ $('#board').innerHTML=html;}
+async function ask(){const q=$('#q').value.trim();if(!q)return;const a=$('#a');a.hidden=false;a.textContent='thinking… (SQL through mcp-clickhouse)';
+ try{const r=await fetch('/api/ask',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q})});const j=await r.json();a.textContent=(j.answer||JSON.stringify(j))+`\n\n[tools: ${(j.tool_calls||[]).join(', ')||'none'}]`;}catch(e){a.textContent='error: '+e;}}
+async function loadEval(){const d=await (await fetch('/api/eval')).json();const keys=Object.keys(d);if(!keys.length){$('#eval').innerHTML='<h2>Evaluation</h2><p class="muted">Not run yet. The plan is pre-registered in docs/EVAL_PLAN.md.</p>';return;}
+ $('#eval').innerHTML='<h2>Evaluation — pre-registered, published as it came out</h2>'+keys.map(k=>{const e=d[k];const kinds=Object.entries(e.by_kind||{});return `<div class="kpis"><div class="kpi"><div class="k">${esc(k)} · scenes</div><div class="v">${e.n_scenes}</div></div><div class="kpi"><div class="k">planted errors</div><div class="v">${e.n_labels}</div></div><div class="kpi"><div class="k">recall</div><div class="v">${e.recall==null?'—':(100*e.recall).toFixed(0)+'%'}</div></div><div class="kpi"><div class="k">precision</div><div class="v">${e.precision==null?'—':(100*e.precision).toFixed(0)+'%'}</div></div><div class="kpi"><div class="k">control FP / scene</div><div class="v">${e.control_fpr_per_scene==null?'—':Number(e.control_fpr_per_scene).toFixed(2)}</div></div></div>
+ <p class="label">Operating point fixed before the run: verdict = continuity_error, confidence ≥ ${e.operating_point.min_confidence}. Pass conditions: recall ≥ 60%, precision ≥ 50%, control ≤ 1 positive/scene → <b>${e.pass?'PASS':'FAIL'}</b>. Ran ${esc(e.ran_at)} in ${e.elapsed_s}s.</p>
+ <table><tr><th>planted kind</th><th>n</th><th>caught</th><th>recall</th></tr>${kinds.map(([kk,v])=>`<tr><td>${esc(kk)}</td><td>${v.n}</td><td>${v.hit}</td><td>${v.n?(100*v.hit/v.n).toFixed(0)+'%':'—'}</td></tr>`).join('')}</table>
+ <details style="margin-top:8px"><summary class="muted">per scene</summary><table><tr><th>scene</th><th>shots</th><th>labels</th><th>hits</th><th>planted positives</th><th>planted TP</th><th>control positives</th><th>within-A error rate</th></tr>${(e.per_scene||[]).map(s=>`<tr><td>${esc(s.scene)}</td><td>${s.shots}</td><td>${s.labels.length}</td><td>${s.recall_hits}</td><td>${s.planted_positives}</td><td>${s.planted_tp}</td><td>${s.control_positives}</td><td>${s.within_A_error_rate==null?'—':(100*s.within_A_error_rate).toFixed(0)+'%'}</td></tr>`).join('')}</table></details>`}).join('');}
+loadScenes();loadEval();
+</script></body></html>
