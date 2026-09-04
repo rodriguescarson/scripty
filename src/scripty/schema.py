@@ -26,17 +26,25 @@ DDL = [
 # (or across shots within the same take). Each row is a candidate the agent can verify visually.
 CANDIDATES_SQL = """
 WITH inv AS (
-  SELECT project, scene, take, shot, t_s, frame_id, entity, entity_kind, attribute, value, confidence
+  SELECT project, scene, take, shot, t_s, frame_id, entity, entity_kind, attribute,
+         trimBoth(lowerUTF8(value)) AS value, confidence
   FROM scripty.inventory FINAL
   WHERE project = {project:String} AND scene = {scene:String} AND confidence >= {min_conf:Float32}
 )
 SELECT a.entity AS entity, a.entity_kind AS entity_kind, a.attribute AS attribute,
        a.take AS take_a, a.frame_id AS frame_a, a.value AS value_a, a.confidence AS conf_a,
        b.take AS take_b, b.frame_id AS frame_b, b.value AS value_b, b.confidence AS conf_b,
-       least(a.confidence, b.confidence) AS sql_score
+       least(a.confidence, b.confidence) AS sql_score,
+       if(a.take != b.take, 'cross_take', 'cross_shot') AS pair_kind
 FROM inv a
-INNER JOIN inv b ON a.entity = b.entity AND a.attribute = b.attribute AND a.frame_id < b.frame_id
-WHERE lowerUTF8(a.value) != lowerUTF8(b.value) AND (a.take != b.take OR a.shot != b.shot)
-ORDER BY sql_score DESC
+INNER JOIN inv b ON a.entity = b.entity AND a.attribute = b.attribute
+WHERE a.frame_id < b.frame_id
+  AND a.value != b.value
+  -- 'bottom-left' vs 'bottom-left corner' is the same value said twice, not a change
+  AND position(a.value, b.value) = 0 AND position(b.value, a.value) = 0
+  -- cross-take: the same shot at (nearly) the same moment; cross-shot: within one take
+  AND ((a.take != b.take AND a.shot = b.shot AND abs(a.t_s - b.t_s) <= {t_tol:Float32})
+       OR (a.take = b.take AND a.shot != b.shot))
+ORDER BY (pair_kind = 'cross_shot'), sql_score DESC
 LIMIT {limit:UInt32}
 """

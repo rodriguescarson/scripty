@@ -28,6 +28,9 @@ class Inventory(BaseModel):
     items: list[Item]
 
 
+COLORS = "black, white, grey, silver, beige, brown, red, orange, yellow, green, blue, navy, purple, pink, gold, clear"
+POSITIONS = "top-left, top-center, top-right, middle-left, center, middle-right, bottom-left, bottom-center, bottom-right"
+
 PROMPT = """You are a film script supervisor's continuity assistant. Inventory this single frame for continuity.
 List every element that could cause a continuity error between takes or shots of the SAME scene: props (and their
 position/state/count), wardrobe (buttons, ties, jackets, jewellery, hats), hair and makeup, set dressing, liquid
@@ -35,19 +38,30 @@ levels in glasses/bottles, cigarettes/candles (burn length), clocks, screen dire
 character is on, what each character is holding and in which hand.
 
 Rules: name entities so the SAME object gets the SAME entity string in every frame of this scene (anchor to the
-character or the fixed set: "glass (left of the woman in red)", "man's tie", "wall clock"). Use short canonical
-values. Do not describe the story. Skip things that legitimately change during a scene (facial expression, mouth
-open/closed, gestures). 8–25 items."""
+character or the fixed set: "glass (left of the woman in red)", "man's tie", "wall clock"). Controlled vocabulary:
+colors ONLY from [""" + COLORS + """]; positions ONLY from [""" + POSITIONS + """] optionally followed by ' on <surface>';
+states from [open, closed, on, off, lit, unlit, full, half full, empty, buttoned, unbuttoned, knotted, loose, worn,
+removed, held, resting]; sides from [camera-left, camera-right, center]; counts as digits. One value per row, no
+prose, no synonyms. Do not describe the story. Skip things that legitimately change during a scene (facial expression,
+mouth open/closed, gestures). 8–25 items."""
+
+REFERENCE_SUFFIX = """
+
+REFERENCE INVENTORY from the reference take of this same shot (continuity sheet). Report EVERY entity below using
+EXACTLY the same entity string, with its current attribute value in this frame (use the value "absent" for attribute
+"present" if the entity is not visible here). Then add any new continuity-relevant entities not on the sheet.
+Reference entities: {refs}"""
 
 
-def inventory_frame(image_path: Path, model: str = MODEL, retries: int = 3) -> Inventory:
+def inventory_frame(image_path: Path, model: str = MODEL, retries: int = 3, reference: list[str] | None = None) -> Inventory:
     img = types.Part.from_bytes(data=image_path.read_bytes(), mime_type="image/jpeg")
+    prompt = PROMPT + (REFERENCE_SUFFIX.format(refs="; ".join(sorted(set(reference))[:40])) if reference else "")
     last: Exception | None = None
     for attempt in range(retries):
         try:
             res = client().models.generate_content(
                 model=model,
-                contents=[PROMPT, img],
+                contents=[prompt, img],
                 config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Inventory, temperature=0.1, max_output_tokens=4096),
             )
             return Inventory.model_validate_json(res.text or "{}")
@@ -62,3 +76,7 @@ def rows_from_inventory(inv: Inventory, *, project: str, scene: str, take: str, 
         {"project": project, "scene": scene, "take": take, "shot": shot, "t_s": t_s, "frame_id": frame_id, "entity": it.entity.strip(), "entity_kind": it.entity_kind, "attribute": it.attribute, "value": it.value.strip(), "confidence": float(it.confidence), "region": it.region, "model": model}
         for it in inv.items
     ]
+
+
+def normalize_entity(e: str) -> str:
+    return " ".join(e.lower().replace("'s", "s").replace("'", "").split())

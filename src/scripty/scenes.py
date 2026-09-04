@@ -32,7 +32,7 @@ def _shot_signature(cap, s: Shot, fps: float) -> np.ndarray:
     if not ok:
         return np.zeros(32 * 32, np.float32)
     hsv = cv2.cvtColor(cv2.resize(frame, (320, 180)), cv2.COLOR_BGR2HSV)
-    h = cv2.calcHist([hsv], [0, 2], None, [32, 32], [0, 180, 0, 256])
+    h = cv2.calcHist([hsv], [0, 2], None, [32, 32], [0, 180, 0, 256])  # hue × value: survives black-and-white
     return cv2.normalize(h, h).flatten()
 
 

@@ -26,10 +26,16 @@ class Frame:
     path: Path
 
 
-def _hist(frame) -> np.ndarray:
+def _hist(frame) -> tuple[np.ndarray, np.ndarray]:
+    """Two signatures: hue/saturation (colour films) and value (works for black-and-white, where H and S are flat)."""
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    h = cv2.calcHist([hsv], [0, 1], None, [32, 32], [0, 180, 0, 256])
-    return cv2.normalize(h, h).flatten()
+    hs = cv2.calcHist([hsv], [0, 1], None, [32, 32], [0, 180, 0, 256])
+    v = cv2.calcHist([hsv], [2], None, [64], [0, 256])
+    return cv2.normalize(hs, hs).flatten(), cv2.normalize(v, v).flatten()
+
+
+def _dist(a, b) -> float:
+    return max(cv2.compareHist(a[0], b[0], cv2.HISTCMP_BHATTACHARYYA), cv2.compareHist(a[1], b[1], cv2.HISTCMP_BHATTACHARYYA))
 
 
 def detect_shots(video: Path, threshold: float = 0.55, min_len_s: float = 0.8, step: int = 2) -> list[Shot]:
@@ -52,7 +58,7 @@ def detect_shots(video: Path, threshold: float = 0.55, min_len_s: float = 0.8, s
             h = _hist(small)
             t = i / fps
             if prev is not None:
-                d = cv2.compareHist(prev, h, cv2.HISTCMP_BHATTACHARYYA)
+                d = _dist(prev, h)
                 if d > threshold and (t - start) >= min_len_s:
                     shots.append(Shot(len(shots), start, t))
                     start = t

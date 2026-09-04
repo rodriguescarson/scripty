@@ -10,8 +10,8 @@ from .schema import CANDIDATES_SQL
 from .verify import verify_pair
 
 
-def candidates(project: str, scene: str, min_conf: float = 0.5, limit: int = 200) -> list[dict]:
-    return db.query(CANDIDATES_SQL, {"project": project, "scene": scene, "min_conf": min_conf, "limit": limit})
+def candidates(project: str, scene: str, min_conf: float = 0.5, limit: int = 200, t_tol: float = 1.5) -> list[dict]:
+    return db.query(CANDIDATES_SQL, {"project": project, "scene": scene, "min_conf": min_conf, "limit": limit, "t_tol": t_tol})
 
 
 def _frame_path(frame_id: str) -> Path:
@@ -38,8 +38,13 @@ def analyze_scene(project: str, scene: str, min_conf: float = 0.5, verify_top: i
     cands = dedupe(candidates(project, scene, min_conf=min_conf, limit=400))[:verify_top]
     findings = []
 
+    errors: list[str] = []
+
     def one(c):
-        v = verify_pair(_frame_path(c["frame_a"]), _frame_path(c["frame_b"]), c["entity"], c["attribute"], c["value_a"], c["value_b"])
+        pa, pb = _frame_path(c["frame_a"]), _frame_path(c["frame_b"])
+        if not pa.exists() or not pb.exists():
+            raise FileNotFoundError(f"{pa.name} / {pb.name}")
+        v = verify_pair(pa, pb, c["entity"], c["attribute"], c["value_a"], c["value_b"])
         return c, v
 
     with cf.ThreadPoolExecutor(max_workers=workers) as ex:
@@ -47,8 +52,11 @@ def analyze_scene(project: str, scene: str, min_conf: float = 0.5, verify_top: i
             try:
                 c, v = fut.result()
             except Exception as e:
+                errors.append(f"{type(e).__name__}: {str(e)[:120]}")
                 continue
             fid = hashlib.sha1(f"{project}|{scene}|{c['entity']}|{c['attribute']}|{c['frame_a']}|{c['frame_b']}".encode()).hexdigest()[:12]
             findings.append({"project": project, "scene": scene, "finding_id": fid, "category": c["entity_kind"], "entity": c["entity"], "attribute": c["attribute"], "take_a": c["take_a"], "frame_a": c["frame_a"], "value_a": c["value_a"], "take_b": c["take_b"], "frame_b": c["frame_b"], "value_b": c["value_b"], "sql_score": float(c["sql_score"]), "verified": 1, "verdict": v.verdict, "confidence": float(v.confidence), "explanation": v.explanation})
     db.insert("findings", findings)
+    if errors:
+        print(f"[analyze] {project}/{scene}: {len(errors)} verifications failed, e.g. {errors[0]}", flush=True)
     return sorted(findings, key=lambda f: (f["verdict"] != "continuity_error", -f["confidence"]))

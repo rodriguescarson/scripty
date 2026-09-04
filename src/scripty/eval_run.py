@@ -27,6 +27,7 @@ def run(video: Path, project: str, frames_dir: Path, out_dir: Path, max_scenes: 
     t0 = time.time()
     scenes = select_eval_scenes(cluster_scenes(video), limit=max_scenes)
     db.ensure_schema()
+    db.purge_project(project)
     per_scene = []
     for sc in scenes:
         scene = f"scene{sc.index:03d}"
@@ -34,8 +35,8 @@ def run(video: Path, project: str, frames_dir: Path, out_dir: Path, max_scenes: 
         control, planted, labels = plant_scene(a_frames, frames_dir / project, scene)
         db.insert("eval_labels", [{"project": project, "scene": scene, "take": l.take, "entity": l.entity, "attribute": l.planted_kind, "planted_kind": l.planted_kind, "description": l.description} for l in labels])
         ingest_frames(project, scene, "A", a_frames, workers=workers)
-        ingest_frames(project, scene, "CONTROL", control, workers=workers)
-        ingest_frames(project, scene, "PLANTED", planted, workers=workers)
+        ingest_frames(project, scene, "CONTROL", control, workers=workers, reference_take="A")
+        ingest_frames(project, scene, "PLANTED", planted, workers=workers, reference_take="A")
         findings = analyze_scene(project, scene, verify_top=60, workers=4)
         pos = [f for f in findings if f["verdict"] == OPERATING["verdict"] and f["confidence"] >= OPERATING["min_confidence"]]
         planted_pos = [f for f in pos if {f["take_a"], f["take_b"]} == {"A", "PLANTED"} or "PLANTED" in (f["take_a"], f["take_b"])]

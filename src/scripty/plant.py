@@ -27,6 +27,7 @@ class Box(BaseModel):
     label: str = Field(description="short prop name, e.g. 'wine glass', 'telephone', 'hat', 'book'")
     box_2d: list[int] = Field(description="[ymin, xmin, ymax, xmax] normalised to 0-1000")
     movable: bool = Field(description="true if a person could plausibly move/remove it between takes")
+    category: str = Field(description="one of: prop (hand-held or table object), garment (worn clothing), set_dressing (furniture, lamp, poster, curtain)")
 
 
 class Boxes(BaseModel):
@@ -115,10 +116,13 @@ def plant_scene(frames: list[Frame], out_root: Path, scene: str, seed: int = 7, 
         first = cv2.imread(str(fs[0].path))
         h, w = first.shape[:2]
         boxes = [b for b in detect_boxes(fs[0].path) if b.movable and (b.box_2d[3] - b.box_2d[1]) * (b.box_2d[2] - b.box_2d[0]) > 400]
-        kind = rng.choice(kinds) if boxes or "flipped" in kinds else None
-        if kind != "flipped" and not boxes:
-            kind = "flipped" if "flipped" in kinds else None
-        box = rng.choice(boxes) if boxes and kind != "flipped" else None
+        kind = rng.choice(kinds)
+        # remove/move only things that are not worn (inpainting a jacket off a person is not a continuity error, it is a glitch)
+        pool = [b for b in boxes if b.category != "garment"] if kind in ("removed", "moved") else boxes
+        if kind != "flipped" and not pool:
+            kind = "recolored" if boxes else ("flipped" if "flipped" in kinds else None)
+            pool = boxes
+        box = rng.choice(pool) if pool and kind != "flipped" else None
         for f in fs:
             img = cv2.imread(str(f.path))
             c = jitter(img, rng)

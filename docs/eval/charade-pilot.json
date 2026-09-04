@@ -1,0 +1,120 @@
+{
+ "project": "charade-pilot",
+ "video": "data/raw/charade.mp4",
+ "ran_at": "2026-09-05T04:14:49",
+ "elapsed_s": 540,
+ "operating_point": {
+  "verdict": "continuity_error",
+  "min_confidence": 0.6
+ },
+ "n_scenes": 2,
+ "n_labels": 8,
+ "recall": 0.0,
+ "precision": null,
+ "control_fpr_per_scene": 0.0,
+ "by_kind": {
+  "recolored": {
+   "n": 3,
+   "hit": 0
+  },
+  "removed": {
+   "n": 3,
+   "hit": 0
+  },
+  "flipped": {
+   "n": 1,
+   "hit": 0
+  },
+  "moved": {
+   "n": 1,
+   "hit": 0
+  }
+ },
+ "pass": false,
+ "per_scene": [
+  {
+   "scene": "scene007",
+   "start_s": 79.14581247914582,
+   "end_s": 115.18184851518185,
+   "shots": 5,
+   "frames_A": 15,
+   "labels": [
+    {
+     "take": "PLANTED",
+     "shot": 10,
+     "planted_kind": "recolored",
+     "entity": "shirt",
+     "description": "shot 10: recolored shirt"
+    },
+    {
+     "take": "PLANTED",
+     "shot": 11,
+     "planted_kind": "removed",
+     "entity": "jacket",
+     "description": "shot 11: removed jacket"
+    },
+    {
+     "take": "PLANTED",
+     "shot": 12,
+     "planted_kind": "recolored",
+     "entity": "movie poster",
+     "description": "shot 12: recolored movie poster"
+    },
+    {
+     "take": "PLANTED",
+     "shot": 13,
+     "planted_kind": "removed",
+     "entity": "jacket",
+     "description": "shot 13: removed jacket"
+    },
+    {
+     "take": "PLANTED",
+     "shot": 14,
+     "planted_kind": "removed",
+     "entity": "pocket square",
+     "description": "shot 14: removed pocket square"
+    }
+   ],
+   "recall_hits": 0,
+   "planted_positives": 0,
+   "planted_tp": 0,
+   "control_positives": 0,
+   "within_A_error_rate": null
+  },
+  {
+   "scene": "scene023",
+   "start_s": 296.62996329662997,
+   "end_s": 331.19786453119787,
+   "shots": 3,
+   "frames_A": 9,
+   "labels": [
+    {
+     "take": "PLANTED",
+     "shot": 32,
+     "planted_kind": "flipped",
+     "entity": "whole frame",
+     "description": "shot 32: flipped frame mirrored (screen direction)"
+    },
+    {
+     "take": "PLANTED",
+     "shot": 33,
+     "planted_kind": "moved",
+     "entity": "glove",
+     "description": "shot 33: moved glove"
+    },
+    {
+     "take": "PLANTED",
+     "shot": 34,
+     "planted_kind": "recolored",
+     "entity": "cup",
+     "description": "shot 34: recolored cup"
+    }
+   ],
+   "recall_hits": 0,
+   "planted_positives": 0,
+   "planted_tp": 0,
+   "control_positives": 0,
+   "within_A_error_rate": null
+  }
+ ]
+}

@@ -34,3 +34,9 @@ def insert(table: str, rows: list[dict]) -> int:
 def query(sql: str, params: dict | None = None) -> list[dict]:
     res = client().query(sql, parameters=params or {})
     return [dict(zip(res.column_names, row)) for row in res.result_rows]
+
+
+def purge_project(project: str) -> None:
+    """Remove every row of a project (fresh evaluation runs must not mix with stale ones)."""
+    for t in ("frames", "inventory", "findings", "eval_labels"):
+        client().command(f"ALTER TABLE scripty.{t} DELETE WHERE project = %(p)s", {"p": project})
