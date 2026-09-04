@@ -1,0 +1,6 @@
+data/
+build/
+.venv/
+.git/
+tests/
+*.mp4

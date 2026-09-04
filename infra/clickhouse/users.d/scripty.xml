@@ -1,0 +1,7 @@
+<clickhouse>
+  <users>
+    <default><password>iiKi_-aGWXw6nzmeH2YgNWyEZ4ayZDcl</password><networks><ip>::/0</ip></networks><profile>default</profile><quota>default</quota><access_management>1</access_management></default>
+    <scripty_ro><password>iiKi_-aGWXw6nzmeH2YgNWyEZ4ayZDcl</password><networks><ip>::/0</ip></networks><profile>readonly</profile><quota>default</quota></scripty_ro>
+  </users>
+  <profiles><default><max_memory_usage>1200000000</max_memory_usage></default><readonly><readonly>1</readonly><max_memory_usage>800000000</max_memory_usage></readonly></profiles>
+</clickhouse>
