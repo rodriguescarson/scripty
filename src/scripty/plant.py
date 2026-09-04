@@ -9,6 +9,7 @@ that flags it is measuring its own noise."""
 from __future__ import annotations
 
 import json
+import os
 import random
 import time
 from dataclasses import dataclass
@@ -39,14 +40,48 @@ frame (glasses, bottles, telephones, hats, books, lamps, cigarettes, bags, ties,
 bounding boxes as [ymin, xmin, ymax, xmax] on a 0-1000 scale. Prefer objects on tables or held by people."""
 
 
-def detect_boxes(image: Path, model: str = MODEL) -> list[Box]:
+class CropCheck(BaseModel):
+    label: str = Field(description="what this crop shows, two or three words")
+    matches: bool = Field(description="true if the crop clearly shows the expected object")
+
+
+def _crop_matches(img: np.ndarray, bb, expected: str, model: str = MODEL) -> bool:
+    """Self-validation: crop the box and ask a second, cheap look whether it shows the expected object."""
+    x0, y0, x1, y1 = bb
+    crop = img[y0:y1, x0:x1]
+    if crop.size == 0:
+        return False
+    ok, buf = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    try:
+        res = client().models.generate_content(model=model, contents=[f"Does this crop clearly show: {expected}? Answer with the schema.", types.Part.from_bytes(data=buf.tobytes(), mime_type="image/jpeg")], config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=CropCheck, temperature=0.0))
+        return bool(CropCheck.model_validate_json(res.text or "{}").matches)
+    except Exception:
+        return False
+
+
+def detect_boxes(image: Path, model: str | None = None, validate: bool = True) -> list[Box]:
+    """Boxes from the stronger model, each validated by cropping it and asking whether it shows the label.
+    A mislocated box (the pilot put a 'shirt' on a man's cheek) is rejected instead of planted."""
+    model = model or os.getenv("SCRIPTY_BOX_MODEL", "gemini-2.5-pro")
+    items: list[Box] = []
     for attempt in range(3):
         try:
             res = client().models.generate_content(model=model, contents=[BOX_PROMPT, types.Part.from_bytes(data=image.read_bytes(), mime_type="image/jpeg")], config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Boxes, temperature=0.1))
-            return Boxes.model_validate_json(res.text or "{}").items
+            items = Boxes.model_validate_json(res.text or "{}").items
+            break
         except Exception:
             time.sleep(2 * (attempt + 1))
-    return []
+    if not validate or not items:
+        return items
+    img = cv2.imread(str(image))
+    h, w = img.shape[:2]
+    out = []
+    for b in items:
+        bb = _px(b.box_2d, w, h)
+        area = (bb[2] - bb[0]) * (bb[3] - bb[1]) / float(w * h)
+        if 0.003 <= area <= 0.12 and _crop_matches(img, bb, b.label):
+            out.append(b)
+    return out
 
 
 def _px(box: list[int], w: int, h: int) -> tuple[int, int, int, int]:
@@ -65,11 +100,22 @@ def jitter(img: np.ndarray, rng: random.Random) -> np.ndarray:
     return out
 
 
+def _soft_mask(shape, bb, feather: int = 9) -> np.ndarray:
+    """Elliptical, feathered mask inside the box — edits blend instead of leaving a rectangle."""
+    x0, y0, x1, y1 = bb
+    m = np.zeros(shape[:2], np.uint8)
+    cv2.ellipse(m, ((x0 + x1) // 2, (y0 + y1) // 2), (max(1, (x1 - x0) // 2), max(1, (y1 - y0) // 2)), 0, 0, 360, 255, -1)
+    return cv2.GaussianBlur(m, (feather * 2 + 1, feather * 2 + 1), 0)
+
+
 def remove(img: np.ndarray, bb) -> np.ndarray:
     x0, y0, x1, y1 = bb
     mask = np.zeros(img.shape[:2], np.uint8)
     mask[y0:y1, x0:x1] = 255
-    return cv2.inpaint(img, mask, 7, cv2.INPAINT_TELEA)
+    mask = cv2.dilate(mask, np.ones((5, 5), np.uint8))
+    filled = cv2.inpaint(img, mask, 9, cv2.INPAINT_TELEA)
+    a = (_soft_mask(img.shape, (max(0, x0 - 4), max(0, y0 - 4), x1 + 4, y1 + 4), 7).astype(np.float32) / 255.0)[..., None]
+    return (filled * a + img * (1 - a)).astype(np.uint8)
 
 
 def move(img: np.ndarray, bb, rng: random.Random) -> np.ndarray:
@@ -84,11 +130,17 @@ def move(img: np.ndarray, bb, rng: random.Random) -> np.ndarray:
 
 
 def recolor(img: np.ndarray, bb, rng: random.Random) -> np.ndarray:
-    x0, y0, x1, y1 = bb
+    """Hue rotation on the object only: the box is feathered and skin-toned pixels are left alone."""
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(np.int16)
-    hsv[y0:y1, x0:x1, 0] = (hsv[y0:y1, x0:x1, 0] + rng.choice([45, 90, 135])) % 180
-    hsv[y0:y1, x0:x1, 1] = np.clip(hsv[y0:y1, x0:x1, 1] + 60, 0, 255)
-    return cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+    shifted = hsv.copy()
+    shifted[..., 0] = (shifted[..., 0] + rng.choice([60, 90, 120])) % 180
+    shifted[..., 1] = np.clip(shifted[..., 1] + 40, 0, 255)
+    out = cv2.cvtColor(shifted.astype(np.uint8), cv2.COLOR_HSV2BGR)
+    a = _soft_mask(img.shape, bb, 9).astype(np.float32) / 255.0
+    skin = ((hsv[..., 0] >= 0) & (hsv[..., 0] <= 25) & (hsv[..., 1] >= 40) & (hsv[..., 2] >= 80))
+    a[skin] = 0.0
+    a = a[..., None]
+    return (out * a + img * (1 - a)).astype(np.uint8)
 
 
 def flip(img: np.ndarray) -> np.ndarray:

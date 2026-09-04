@@ -40,3 +40,48 @@ def purge_project(project: str) -> None:
     """Remove every row of a project (fresh evaluation runs must not mix with stale ones)."""
     for t in ("frames", "inventory", "findings", "eval_labels"):
         client().command(f"ALTER TABLE scripty.{t} DELETE WHERE project = %(p)s", {"p": project})
+
+
+# ---------------------------------------------------------------------------
+# Durability. The Cloud Run node's disk is ephemeral: a redeploy or crash empties it. Every
+# project is exported to JSONL in the frames bucket after ingest, and the app restores on
+# boot if the tables are empty — no Gemini call is ever repeated to rebuild the database.
+# ---------------------------------------------------------------------------
+TABLES = ("frames", "inventory", "findings", "eval_labels")
+
+
+def export_project(project: str, out_dir) -> dict:
+    import json
+    from pathlib import Path
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    counts = {}
+    for t in TABLES:
+        rows = query(f"SELECT * FROM scripty.{t} FINAL WHERE project = %(p)s", {"p": project})
+        with (out_dir / f"{t}.jsonl").open("w") as f:
+            for r in rows:
+                f.write(json.dumps(r, default=str) + "\n")
+        counts[t] = len(rows)
+    return counts
+
+
+def restore_dir(in_dir) -> dict:
+    import json
+    from pathlib import Path
+    in_dir = Path(in_dir)
+    counts = {}
+    ensure_schema()
+    for t in TABLES:
+        p = in_dir / f"{t}.jsonl"
+        if not p.exists():
+            continue
+        rows = [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
+        for r in rows:
+            for k in ("ingested_at", "extracted_at", "created_at"):
+                r.pop(k, None)
+        counts[t] = insert(t, rows)
+    return counts
+
+
+def is_empty() -> bool:
+    return query("SELECT count() AS c FROM scripty.frames")[0]["c"] == 0

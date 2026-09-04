@@ -40,7 +40,7 @@ def test_plant_edits_change_pixels_only_where_intended():
     m = move(img, bb, rng)
     assert not np.array_equal(m, img)
     c = recolor(img, bb, rng)
-    assert np.array_equal(c[:50, :50], img[:50, :50]) and not np.array_equal(c[60:100, 100:140], img[60:100, 100:140])
+    assert np.array_equal(c[:50, :50], img[:50, :50]) and not np.array_equal(c[70:90, 110:130], img[70:90, 110:130])
     f = flip(img)
     assert np.array_equal(f[:, ::-1], img)
     j = jitter(img, rng)

@@ -20,6 +20,15 @@ FRAMES_BASE_URL = os.getenv("SCRIPTY_FRAMES_BASE_URL", "")  # e.g. https://stora
 EVAL_DIR = ROOT / "docs" / "eval"
 
 app = FastAPI(title="Scripty")
+
+
+@app.on_event("startup")
+def _restore_on_boot():
+    try:
+        from .durability import restore_all_if_empty
+        print("restore:", restore_all_if_empty(), flush=True)
+    except Exception as e:
+        print("restore skipped:", str(e)[:200], flush=True)
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
 

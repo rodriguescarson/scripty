@@ -62,4 +62,9 @@ def run(video: Path, project: str, frames_dir: Path, out_dir: Path, max_scenes: 
     out = {"project": project, "video": str(video), "ran_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "elapsed_s": round(time.time() - t0), "operating_point": OPERATING, "n_scenes": len(per_scene), "n_labels": labels_total, "recall": recall, "precision": precision, "control_fpr_per_scene": control_fpr, "by_kind": by_kind, "pass": passed, "per_scene": [{k: v for k, v in s.items() if k != "findings"} for s in per_scene]}
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / f"{project}.json").write_text(json.dumps(out, indent=1, default=str))
+    try:
+        from .durability import backup
+        print("backup:", backup(project), flush=True)
+    except Exception as e:
+        print("backup failed:", str(e)[:200], flush=True)
     return out
