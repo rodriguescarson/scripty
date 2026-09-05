@@ -23,22 +23,48 @@ def client():
     return _local.client
 
 
+def _retry(fn, attempts: int = 4):
+    """The node is a single Cloud Run instance behind HTTPS: transient 5xx/timeouts happen. Retry with backoff."""
+    import time
+    last = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as e:  # noqa: BLE001
+            msg = str(e)
+            last = e
+            transient = any(k in msg for k in ("503", "502", "504", "timed out", "Timeout", "Connection", "RemoteDisconnected", "reset by peer", "Max retries", "Temporary"))
+            if i < attempts - 1 and transient:
+                _local.client = None  # drop the connection; a fresh one is made on the next call
+                time.sleep(2 * (i + 1))
+                continue
+            raise
+    raise last  # pragma: no cover
+
+
+_schema_done = False
+
+
 def ensure_schema() -> None:
-    c = client()
+    global _schema_done
+    if _schema_done:
+        return
     for stmt in DDL:
-        c.command(stmt)
+        _retry(lambda s=stmt: client().command(s))
+    _schema_done = True
 
 
 def insert(table: str, rows: list[dict]) -> int:
     if not rows:
         return 0
     cols = list(rows[0].keys())
-    client().insert(f"scripty.{table}", [[r.get(k) for k in cols] for r in rows], column_names=cols)
+    data = [[r.get(k) for k in cols] for r in rows]
+    _retry(lambda: client().insert(f"scripty.{table}", data, column_names=cols))
     return len(rows)
 
 
 def query(sql: str, params: dict | None = None) -> list[dict]:
-    res = client().query(sql, parameters=params or {})
+    res = _retry(lambda: client().query(sql, parameters=params or {}))
     return [dict(zip(res.column_names, row)) for row in res.result_rows]
 
 

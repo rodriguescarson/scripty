@@ -1,0 +1,32 @@
+Direct use of automatic function calling (AFC) in Models.generate_content is not recommended. Instead, we recommend to use AFC in Chat.send_message. Similarly, direct use of AFC in Models.generate_content_stream is not recommended. Instead, we recommend to use AFC in Chat.send_message_stream.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/carson/Projects/scripty/src/scripty/eval_cli.py", line 9, in <module>
+    out = run(video, project, Path("data/frames"), Path("docs/eval"), max_scenes=max_scenes)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/carson/Projects/scripty/src/scripty/eval_run.py", line 39, in run
+    ingest_frames(project, scene, "PLANTED", planted, workers=workers, reference_take="A")
+  File "/Users/carson/Projects/scripty/src/scripty/ingest.py", line 50, in ingest_frames
+    db.ensure_schema()
+  File "/Users/carson/Projects/scripty/src/scripty/db.py", line 29, in ensure_schema
+    c.command(stmt)
+  File "/Users/carson/Projects/scripty/.venv/lib/python3.12/site-packages/clickhouse_connect/driver/_backendclient.py", line 145, in command
+    execution = self._backend.execute_command(bound_cmd, bind_params, data, external_data, runtime, transport_settings)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/carson/Projects/scripty/.venv/lib/python3.12/site-packages/clickhouse_connect/driver/_backend/http_sync.py", line 267, in execute_command
+    response = self.request(plan.payload, plan.params, plan.headers, plan.method, fields=plan.form_files, server_wait=False)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/carson/Projects/scripty/.venv/lib/python3.12/site-packages/clickhouse_connect/driver/_backend/http_sync.py", line 382, in request
+    self.error_handler(response)
+  File "/Users/carson/Projects/scripty/.venv/lib/python3.12/site-packages/clickhouse_connect/driver/_backend/http_sync.py", line 126, in error_handler
+    raise build_http_error(
+clickhouse_connect.driver.exceptions.DatabaseError: HTTP driver received HTTP status 500, server response: <html><head>
+<meta http-equiv="content-type" content="text/html;charset=utf-8">
+<title>500 Server Error</title>
+</head>
+<body text=#000000 bgcolor=#ffffff>
+<h1>Error: Server Error</h1>
+<h2>The server encountered an error and could not complete your request.<p>Please try again in 30 seconds.</h2>
+<h2></h2>
+</body></html> (for url https://scripty-clickhouse-q62ufgdryq-uc.a.run.app:443)

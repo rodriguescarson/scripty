@@ -47,7 +47,6 @@ def ingest_frames(project: str, scene: str, take: str, frames: list[Frame], work
             for r in rows:
                 r["entity"] = normalize_entity(r["entity"])
             inv_rows.extend(rows)
-    db.ensure_schema()
     db.insert("frames", frame_rows)
     db.insert("inventory", inv_rows)
     return {"frames": len(frame_rows), "inventory_rows": len(inv_rows), "failures": failures}
