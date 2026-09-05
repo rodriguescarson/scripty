@@ -14,11 +14,10 @@ def candidates(project: str, scene: str, min_conf: float = 0.5, limit: int = 200
     return db.query(CANDIDATES_SQL, {"project": project, "scene": scene, "min_conf": min_conf, "limit": limit, "t_tol": t_tol})
 
 
-def _frame_path(frame_id: str) -> Path:
-    rows = db.query("SELECT image_path FROM scripty.frames FINAL WHERE frame_id = {f:String} LIMIT 1", {"f": frame_id})
-    if not rows:
-        raise KeyError(frame_id)
-    return Path(rows[0]["image_path"])
+def frame_paths(project: str, scene: str) -> dict[str, Path]:
+    """All frame paths for a scene in one query — looked up before any thread pool starts."""
+    rows = db.query("SELECT frame_id, image_path FROM scripty.frames FINAL WHERE project = {p:String} AND scene = {s:String}", {"p": project, "s": scene})
+    return {r["frame_id"]: Path(r["image_path"]) for r in rows}
 
 
 def dedupe(cands: list[dict]) -> list[dict]:

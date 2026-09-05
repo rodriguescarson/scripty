@@ -137,7 +137,7 @@ def recolor(img: np.ndarray, bb, rng: random.Random) -> np.ndarray:
     shifted[..., 1] = np.clip(shifted[..., 1] + 40, 0, 255)
     out = cv2.cvtColor(shifted.astype(np.uint8), cv2.COLOR_HSV2BGR)
     a = _soft_mask(img.shape, bb, 9).astype(np.float32) / 255.0
-    skin = ((hsv[..., 0] >= 0) & (hsv[..., 0] <= 25) & (hsv[..., 1] >= 40) & (hsv[..., 2] >= 80))
+    skin = ((hsv[..., 0] >= 3) & (hsv[..., 0] <= 22) & (hsv[..., 1] >= 40) & (hsv[..., 1] <= 170) & (hsv[..., 2] >= 80))
     a[skin] = 0.0
     a = a[..., None]
     return (out * a + img * (1 - a)).astype(np.uint8)

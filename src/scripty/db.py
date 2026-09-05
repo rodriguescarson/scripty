@@ -2,19 +2,25 @@
 from __future__ import annotations
 
 import os
-from functools import lru_cache
+import threading
 
 import clickhouse_connect
 
 from .schema import DDL
 
+_local = threading.local()
 
-@lru_cache(maxsize=1)
+
 def client():
+    """One clickhouse-connect client per thread: the HTTP client is not safe for concurrent queries."""
+    c = getattr(_local, "client", None)
+    if c is not None:
+        return c
     host = os.getenv("CLICKHOUSE_HOST", "localhost")
     secure = os.getenv("CLICKHOUSE_SECURE", "false").lower() == "true"
     port = int(os.getenv("CLICKHOUSE_PORT", "443" if secure else "8123"))
-    return clickhouse_connect.get_client(host=host, port=port, username=os.getenv("CLICKHOUSE_USER", "default"), password=os.getenv("CLICKHOUSE_PASSWORD", ""), secure=secure, connect_timeout=20, send_receive_timeout=120)
+    _local.client = clickhouse_connect.get_client(host=host, port=port, username=os.getenv("CLICKHOUSE_USER", "default"), password=os.getenv("CLICKHOUSE_PASSWORD", ""), secure=secure, connect_timeout=20, send_receive_timeout=120)
+    return _local.client
 
 
 def ensure_schema() -> None:

@@ -33,7 +33,7 @@ def look_at_pair(frame_a_id: str, frame_b_id: str, entity: str, attribute: str, 
     """Look at two frames (by frame_id) and rule whether the candidate difference is a continuity error."""
     from . import db
     pa = db.query("SELECT image_path FROM scripty.frames FINAL WHERE frame_id = {f:String} LIMIT 1", {"f": frame_a_id})
-    pb = db.query("SELECT image_path FROM scripty.frames FINAL WHERE frame_id = {f:String} LIMIT 1", {"f": frame_b_id})
+    pb = db.query("SELECT image_path FROM scripty.frames FINAL WHERE frame_id = {f:String} LIMIT 1", {"f": frame_b_id})  # thread-local client
     if not pa or not pb:
         return {"error": "unknown frame_id"}
     v = verify_pair(Path(pa[0]["image_path"]), Path(pb[0]["image_path"]), entity, attribute, value_a, value_b)
