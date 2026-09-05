@@ -16,7 +16,7 @@ from .gemini import VERIFY_MODEL, client
 class Verdict(BaseModel):
     verdict: str = Field(description="one of: continuity_error, intentional_change, same, uncertain")
     confidence: float = Field(ge=0, le=1)
-    explanation: str = Field(description="two sentences citing what is visible in frame A and frame B")
+    explanation: str = Field(description="at most two short sentences citing what is visible in frame A and frame B")
 
 
 PROMPT = """You are verifying a possible continuity error between two frames from takes/shots of the SAME scene.
@@ -26,6 +26,9 @@ Look at both frames. Decide:
 - intentional_change: the difference is explained by the action (a character drinks, moves the prop, takes off a hat) or by a legitimately different moment in the scene.
 - same: no real difference; the candidate is a labelling inconsistency.
 - uncertain: cannot tell from these frames.
+Domain rules a script supervisor applies: if frame B is a mirror image of frame A (same composition reversed, so
+screen direction and left/right positions flip) that is a continuity error (a flopped shot), not a new angle. A colour,
+pattern or state change on the same garment/prop within the same setup is a continuity error unless an action explains it.
 Be strict: only say continuity_error when the frames clearly contradict each other on that attribute."""
 
 
@@ -34,7 +37,7 @@ def verify_pair(frame_a: Path, frame_b: Path, entity: str, attribute: str, value
     last: Exception | None = None
     for attempt in range(retries):
         try:
-            res = client().models.generate_content(model=model, contents=parts, config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Verdict, temperature=0.1, max_output_tokens=1024))
+            res = client().models.generate_content(model=model, contents=parts, config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Verdict, temperature=0.1, max_output_tokens=2048))
             return Verdict.model_validate_json(res.text or "{}")
         except Exception as e:
             last = e

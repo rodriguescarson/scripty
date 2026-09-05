@@ -130,12 +130,19 @@ def move(img: np.ndarray, bb, rng: random.Random) -> np.ndarray:
 
 
 def recolor(img: np.ndarray, bb, rng: random.Random) -> np.ndarray:
-    """Hue rotation on the object only: the box is feathered and skin-toned pixels are left alone."""
+    """Colour change on the object only: hue rotation for saturated objects, a strong tint for white/grey/black
+    ones (a hue rotation is invisible on a white shirt). The box is feathered and skin-toned pixels are left alone."""
+    x0, y0, x1, y1 = bb
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(np.int16)
-    shifted = hsv.copy()
-    shifted[..., 0] = (shifted[..., 0] + rng.choice([60, 90, 120])) % 180
-    shifted[..., 1] = np.clip(shifted[..., 1] + 40, 0, 255)
-    out = cv2.cvtColor(shifted.astype(np.uint8), cv2.COLOR_HSV2BGR)
+    region_sat = float(hsv[y0:y1, x0:x1, 1].mean()) if (y1 > y0 and x1 > x0) else 0.0
+    if region_sat < 50:
+        tint = np.array(rng.choice([(40, 40, 200), (40, 160, 40), (200, 60, 40), (30, 120, 220)]), np.float32)  # red, green, blue, orange (BGR)
+        out = (0.45 * img.astype(np.float32) + 0.55 * tint).astype(np.uint8)
+    else:
+        shifted = hsv.copy()
+        shifted[..., 0] = (shifted[..., 0] + rng.choice([60, 90, 120])) % 180
+        shifted[..., 1] = np.clip(shifted[..., 1] + 40, 0, 255)
+        out = cv2.cvtColor(shifted.astype(np.uint8), cv2.COLOR_HSV2BGR)
     a = _soft_mask(img.shape, bb, 9).astype(np.float32) / 255.0
     skin = ((hsv[..., 0] >= 3) & (hsv[..., 0] <= 22) & (hsv[..., 1] >= 40) & (hsv[..., 1] <= 170) & (hsv[..., 2] >= 80))
     a[skin] = 0.0

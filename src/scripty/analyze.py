@@ -35,14 +35,14 @@ def dedupe(cands: list[dict]) -> list[dict]:
 
 def analyze_scene(project: str, scene: str, min_conf: float = 0.5, verify_top: int = 40, workers: int = 4, category_map=None) -> list[dict]:
     cands = dedupe(candidates(project, scene, min_conf=min_conf, limit=400))[:verify_top]
-    findings = []
-
+    paths = frame_paths(project, scene)  # one query, before any thread starts
+    findings: list[dict] = []
     errors: list[str] = []
 
     def one(c):
         pa, pb = paths.get(c["frame_a"]), paths.get(c["frame_b"])
-        if not pa.exists() or not pb.exists():
-            raise FileNotFoundError(f"{pa.name} / {pb.name}")
+        if pa is None or pb is None or not pa.exists() or not pb.exists():
+            raise FileNotFoundError(f"{c['frame_a']} / {c['frame_b']}")
         v = verify_pair(pa, pb, c["entity"], c["attribute"], c["value_a"], c["value_b"])
         return c, v
 
