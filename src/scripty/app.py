@@ -94,7 +94,12 @@ def eval_results():
     out = {}
     if EVAL_DIR.exists():
         for p in sorted(EVAL_DIR.glob("*.json")):
+            if p.name.endswith(".rescore.json"):
+                continue
             out[p.stem] = json.loads(p.read_text())
+            rs = EVAL_DIR / f"{p.stem}.rescore.json"
+            if rs.exists():
+                out[p.stem]["rescore"] = json.loads(rs.read_text())
     return out
 
 

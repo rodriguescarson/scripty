@@ -40,7 +40,11 @@ ORDER BY sql_score DESC
 
 ## The hard problem, named: intentional versus error
 
-«Filled from the run: the within-take error rate on real shot pairs, the per-kind recall, and what the verifier got wrong most often.»
+Three things the pilot scenes showed, all visible in the app:
+
+1. **A mirrored frame was detected and then excused.** The inventory correctly flipped "facing camera-right" to "facing camera-left" for the planted flop, ClickHouse surfaced it, and the verifier ruled *intentional change* — "he has turned his head, a plausible change in action." That is the intentional-versus-error wall exactly: the model prefers the benign story. The domain rule (a flopped shot reverses *everything*, not one head) is now in the verifier's instructions; how much it helps is in the per-kind table.
+2. **The verifier's confidence carries no information.** It returned 1.00 for confirmed errors, for "same", and for a control-take false positive ("hair styled → strands fallen forward" on two frames that differ only by reframing). The operating point was pre-registered as confidence ≥ 0.6, so it is reported as written — and the finding that confidence is uninformative is itself a result. The shortlist is ranked by SQL agreement and verdict, not by that number.
+3. **Labelling drift is the noise floor.** Without anchoring, only 35 % of entities were named identically across takes of the same shot; with the reference-take inventory ("continuity sheet") passed into the prompt and a controlled vocabulary, most entities are reused and the control take's per-attribute flip rate drops. Anchoring is what a real script supervisor does — the sheet from take 1 is the reference for take 2 — and it turned out to be the single most important design decision.
 
 ## The evaluation (pre-registered)
 

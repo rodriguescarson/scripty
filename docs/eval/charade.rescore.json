@@ -1,0 +1,46 @@
+{
+ "plan": {
+  "scenes": 1,
+  "labels": 5,
+  "recall": 0.6,
+  "precision": 1.0,
+  "planted_positives": 1,
+  "control_fpr_per_scene": 0.0,
+  "by_kind": {
+   "recolored": {
+    "n": 2,
+    "hit": 2
+   },
+   "flipped": {
+    "n": 2,
+    "hit": 0
+   },
+   "removed": {
+    "n": 1,
+    "hit": 1
+   }
+  }
+ },
+ "strict": {
+  "scenes": 1,
+  "labels": 5,
+  "recall": 0.2,
+  "precision": 1.0,
+  "planted_positives": 1,
+  "control_fpr_per_scene": 0.0,
+  "by_kind": {
+   "recolored": {
+    "n": 2,
+    "hit": 0
+   },
+   "flipped": {
+    "n": 2,
+    "hit": 0
+   },
+   "removed": {
+    "n": 1,
+    "hit": 1
+   }
+  }
+ }
+}
