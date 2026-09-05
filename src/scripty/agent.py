@@ -22,10 +22,18 @@ database `scripty` with tables:
 - scripty.inventory (project, scene, take, shot, t_s, frame_id, entity, entity_kind, attribute, value, confidence, region)
 - scripty.findings (project, scene, finding_id, category, entity, attribute, take_a, frame_a, value_a, take_b, frame_b, value_b, sql_score, verified, verdict, confidence, explanation)
 - scripty.eval_labels (planted ground truth for evaluation scenes)
-Use run_query (read-only SQL, always add FINAL after ReplacingMergeTree tables and LIMIT) to answer questions
-like "what changed on the desk between take 2 and take 4", "which findings are confirmed continuity errors",
-"what does take 3 hold in the left hand". Cite the rows you used (take, shot, t_s, value). When a user asks
-you to double-check a specific pair, call look_at_pair with the two frame_ids. Be concise and concrete; a
+Use run_query (read-only SQL; ALWAYS fully qualify tables as scripty.<table>, add FINAL after the table name, and
+LIMIT) to answer questions like "what changed on the desk between take A and take PLANTED", "which findings are
+confirmed continuity errors", "what does take CONTROL hold in the left hand".
+Semantics: a finding is a CONFIRMED continuity error when verdict = 'continuity_error' AND confidence >= 0.6.
+verdict values: continuity_error, intentional_change, same, uncertain. Takes are named A, CONTROL, PLANTED in
+evaluation projects. Example:
+  SELECT entity, attribute, value_a, value_b, take_a, take_b, confidence, explanation
+  FROM scripty.findings FINAL
+  WHERE project = 'charade' AND scene = 'scene021' AND verdict = 'continuity_error' AND confidence >= 0.6
+  ORDER BY confidence DESC LIMIT 20
+If a query returns an error, fix the SQL and retry once. Cite the rows you used (take, shot, t_s, value). When
+asked to double-check a specific pair, call look_at_pair with the two frame_ids. Be concise and concrete; a
 supervisor reads this at call time."""
 
 
@@ -68,7 +76,8 @@ async def ask_async(question: str, session_state: dict | None = None) -> tuple[s
                 for part in ev.content.parts:
                     fc = getattr(part, "function_call", None)
                     if fc is not None:
-                        calls.append(fc.name)
+                        args = dict(fc.args or {})
+                        calls.append(f"{fc.name}: {str(args.get('query') or args)[:300]}")
                     if ev.is_final_response() and getattr(part, "text", None):
                         final += part.text
     finally:
