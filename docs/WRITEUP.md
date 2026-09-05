@@ -54,7 +54,11 @@ Result: «recall / precision / control FPR / PASS-FAIL, per-kind table».
 
 ## Challenges I ran into
 
-«Filled after the run.»
+- **Names drift.** Two independent inventories of the same shot named only 35 % of entities identically. The fix was not a better prompt but the script supervisor's own method: the first take's inventory becomes the continuity sheet that every later take is inventoried *against*, with a controlled vocabulary for colours, positions and states. Entity reuse went to most entities and the control take's flip rate fell.
+- **Planting is harder than detecting.** Gemini Flash put a "shirt" bounding box on a man's cheek; a rectangle hue-shift on a white shirt changes nothing; segmentation masks time out at 504. What survived: Gemini 2.5 Pro boxes, each *validated* by cropping the box and asking a second model whether it shows the label; feathered inpainting for removals; a tint for unsaturated garments; and no removals of worn clothing (inpainting a jacket off a person is a glitch, not a continuity error).
+- **A mirrored watermark leaks the flip.** The archive print carries a station logo in the corner; a mirrored logo would let a detector "find" the flopped frame for the wrong reason. Both bottom corners are blurred on every frame of every take.
+- **ClickHouse specifics.** 24.8 rejects an inequality inside the JOIN condition (`allow_experimental_join_condition`) — it lives in WHERE now; the `clickhouse-connect` client is not safe for concurrent queries, so each thread gets its own; a 2 GiB Cloud Run node hit its memory ceiling on a trivial aggregation; and a Cloud Run disk is ephemeral, so every project is exported to JSONL in the bucket and restored on boot without repeating a single Gemini call.
+- **Two MCP generations.** `mcp-clickhouse` needs the `mcp` 2.x package; Google ADK's `McpToolset` imports `mcp.shared.session` from 1.x. They live in separate environments in the container (`uv tool install` for the server) and talk over stdio.
 
 ## Accomplishments that I'm proud of
 
@@ -64,7 +68,7 @@ Result: «recall / precision / control FPR / PASS-FAIL, per-kind table».
 
 ## What I learned
 
-«Filled after the run.»
+The evaluation was worth more than the detector. Every pilot run "worked" until the numbers said it did not: the first candidate query paired different men across shots, the first planting scored zero because the edits were unrecognisable, the verifier's confidence turned out to be always 1.00, and a control take with nothing changed still produced flagged findings. None of that is visible in a demo video; all of it is visible on the evaluation page, and that page is the reason a supervisor could decide whether to trust the shortlist before call time. Pre-registering the pass/fail conditions made the outcome a result instead of an argument.
 
 ## What's next
 
