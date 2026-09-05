@@ -101,10 +101,11 @@ def jitter(img: np.ndarray, rng: random.Random) -> np.ndarray:
 
 
 def _soft_mask(shape, bb, feather: int = 9) -> np.ndarray:
-    """Elliptical, feathered mask inside the box — edits blend instead of leaving a rectangle."""
+    """Feathered rectangle slightly inset from the box — edits blend at the edges instead of leaving a hard rectangle."""
     x0, y0, x1, y1 = bb
     m = np.zeros(shape[:2], np.uint8)
-    cv2.ellipse(m, ((x0 + x1) // 2, (y0 + y1) // 2), (max(1, (x1 - x0) // 2), max(1, (y1 - y0) // 2)), 0, 0, 360, 255, -1)
+    ix, iy = max(1, (x1 - x0) // 12), max(1, (y1 - y0) // 12)
+    cv2.rectangle(m, (x0 + ix, y0 + iy), (x1 - ix, y1 - iy), 255, -1)
     return cv2.GaussianBlur(m, (feather * 2 + 1, feather * 2 + 1), 0)
 
 
@@ -140,8 +141,8 @@ def recolor(img: np.ndarray, bb, rng: random.Random) -> np.ndarray:
         out = (0.45 * img.astype(np.float32) + 0.55 * tint).astype(np.uint8)
     else:
         shifted = hsv.copy()
-        shifted[..., 0] = (shifted[..., 0] + rng.choice([60, 90, 120])) % 180
-        shifted[..., 1] = np.clip(shifted[..., 1] + 40, 0, 255)
+        shifted[..., 0] = (shifted[..., 0] + rng.choice([90, 120])) % 180
+        shifted[..., 1] = np.clip(shifted[..., 1] + 70, 0, 255)
         out = cv2.cvtColor(shifted.astype(np.uint8), cv2.COLOR_HSV2BGR)
     a = _soft_mask(img.shape, bb, 9).astype(np.float32) / 255.0
     skin = ((hsv[..., 0] >= 3) & (hsv[..., 0] <= 22) & (hsv[..., 1] >= 40) & (hsv[..., 1] <= 170) & (hsv[..., 2] >= 80))

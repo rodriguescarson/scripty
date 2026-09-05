@@ -10,8 +10,8 @@ from .schema import CANDIDATES_SQL
 from .verify import verify_pair
 
 
-def candidates(project: str, scene: str, min_conf: float = 0.5, limit: int = 200, t_tol: float = 1.5) -> list[dict]:
-    return db.query(CANDIDATES_SQL, {"project": project, "scene": scene, "min_conf": min_conf, "limit": limit, "t_tol": t_tol})
+def candidates(project: str, scene: str, min_conf: float = 0.5, limit: int = 200, t_tol: float = 1.5, reference: str = "A") -> list[dict]:
+    return db.query(CANDIDATES_SQL, {"project": project, "scene": scene, "min_conf": min_conf, "limit": limit, "t_tol": t_tol, "reference": reference})
 
 
 def frame_paths(project: str, scene: str) -> dict[str, Path]:
@@ -20,12 +20,18 @@ def frame_paths(project: str, scene: str) -> dict[str, Path]:
     return {r["frame_id"]: Path(r["image_path"]) for r in rows}
 
 
+def counterpart_frames(project: str, scene: str) -> dict[tuple, str]:
+    """(take, shot, t_s) → frame_id, to resolve the image for an inferred-absence pair (frame_b is empty)."""
+    rows = db.query("SELECT take, shot, t_s, frame_id FROM scripty.frames FINAL WHERE project = {p:String} AND scene = {s:String}", {"p": project, "s": scene})
+    return {(r["take"], int(r["shot"]), round(float(r["t_s"]), 2)): r["frame_id"] for r in rows}
+
+
 def dedupe(cands: list[dict]) -> list[dict]:
     """One candidate per (entity, attribute, value pair) — the SQL returns every frame pair."""
     seen: set[tuple] = set()
     out = []
     for c in cands:
-        key = (c["entity"].lower(), c["attribute"], c["value_a"].lower(), c["value_b"].lower())
+        key = (c["entity"].lower(), c["attribute"], c["value_a"].lower(), c["value_b"].lower(), c["take_a"], c["take_b"])
         if key in seen:
             continue
         seen.add(key)
@@ -33,9 +39,21 @@ def dedupe(cands: list[dict]) -> list[dict]:
     return out
 
 
-def analyze_scene(project: str, scene: str, min_conf: float = 0.5, verify_top: int = 40, workers: int = 4, category_map=None) -> list[dict]:
-    cands = dedupe(candidates(project, scene, min_conf=min_conf, limit=400))[:verify_top]
+def analyze_scene(project: str, scene: str, min_conf: float = 0.5, verify_top: int = 80, workers: int = 4, category_map=None, reference: str = "A") -> list[dict]:
+    """Verify every cross-take candidate (A vs each other take, same shot and moment) up to `verify_top`;
+    cross-shot pairs within a take only fill whatever budget is left."""
+    allc = dedupe(candidates(project, scene, min_conf=min_conf, limit=600, reference=reference))
+    cross_take = [c for c in allc if c["pair_kind"] == "cross_take"]
+    cross_shot = [c for c in allc if c["pair_kind"] != "cross_take"]
+    cands = (cross_take + cross_shot)[:verify_top]
     paths = frame_paths(project, scene)  # one query, before any thread starts
+    counterpart = counterpart_frames(project, scene)
+    shot_t = {r["frame_id"]: (int(r["shot"]), round(float(r["t_s"]), 2)) for r in db.query("SELECT frame_id, shot, t_s FROM scripty.frames FINAL WHERE project = {p:String} AND scene = {s:String}", {"p": project, "s": scene})}
+    for c in cands:
+        if not c["frame_b"]:  # inferred absence: the other take's frame at the same shot and moment
+            st = shot_t.get(c["frame_a"])
+            if st:
+                c["frame_b"] = counterpart.get((c["take_b"], st[0], st[1]), "")
     findings: list[dict] = []
     errors: list[str] = []
 

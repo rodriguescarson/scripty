@@ -30,21 +30,42 @@ WITH inv AS (
          trimBoth(lowerUTF8(value)) AS value, confidence
   FROM scripty.inventory FINAL
   WHERE project = {project:String} AND scene = {scene:String} AND confidence >= {min_conf:Float32}
+),
+-- presence per (take, frame, entity): explicit 'present = absent' wins; any other row means present
+presence AS (
+  SELECT take, shot, t_s, frame_id, entity, any(entity_kind) AS entity_kind,
+         if(countIf(attribute = 'present' AND value IN ('absent','no','removed')) > 0, 'absent', 'present') AS value,
+         max(confidence) AS confidence, count() AS n_rows
+  FROM inv GROUP BY take, shot, t_s, frame_id, entity
+),
+attr_pairs AS (
+  SELECT a.entity AS entity, a.entity_kind AS entity_kind, a.attribute AS attribute,
+         a.take AS take_a, a.frame_id AS frame_a, a.value AS value_a, a.confidence AS conf_a,
+         b.take AS take_b, b.frame_id AS frame_b, b.value AS value_b, b.confidence AS conf_b,
+         least(a.confidence, b.confidence) AS sql_score,
+         if(a.take != b.take, 'cross_take', 'cross_shot') AS pair_kind
+  FROM inv a INNER JOIN inv b ON a.entity = b.entity AND a.attribute = b.attribute
+  WHERE a.frame_id < b.frame_id AND a.value != b.value AND a.attribute != 'present'
+    AND position(a.value, b.value) = 0 AND position(b.value, a.value) = 0
+    AND ((a.take != b.take AND a.shot = b.shot AND abs(a.t_s - b.t_s) <= {t_tol:Float32}) OR (a.take = b.take AND a.shot != b.shot))
+    AND (a.take = b.take OR a.take = {reference:String} OR b.take = {reference:String})
+),
+-- presence pairs: same shot and moment across takes; an entity the reference take saw (>= 2 rows) and the other
+-- take reports absent, or does not report at all (LEFT JOIN, inferred absence — the verifier decides)
+presence_pairs AS (
+  SELECT a.entity AS entity, a.entity_kind AS entity_kind, 'present' AS attribute,
+         a.take AS take_a, a.frame_id AS frame_a, a.value AS value_a, a.confidence AS conf_a,
+         b.take AS take_b, b.frame_id AS frame_b, if(b.frame_id = '', 'absent (not reported)', b.value) AS value_b, if(b.frame_id = '', 0.6, b.confidence) AS conf_b,
+         least(a.confidence, if(b.frame_id = '', 0.6, b.confidence)) AS sql_score, 'cross_take' AS pair_kind
+  FROM presence a
+  INNER JOIN (SELECT DISTINCT take, shot, t_s, frame_id FROM inv) fr ON fr.shot = a.shot AND fr.t_s = a.t_s
+  LEFT JOIN presence b ON b.frame_id = fr.frame_id AND b.entity = a.entity
+  WHERE fr.take != a.take AND a.take = {reference:String} AND a.n_rows >= 2 AND a.entity_kind IN ('prop','set_dressing','wardrobe')
+    AND (b.frame_id = '' OR b.value != a.value)
 )
-SELECT a.entity AS entity, a.entity_kind AS entity_kind, a.attribute AS attribute,
-       a.take AS take_a, a.frame_id AS frame_a, a.value AS value_a, a.confidence AS conf_a,
-       b.take AS take_b, b.frame_id AS frame_b, b.value AS value_b, b.confidence AS conf_b,
-       least(a.confidence, b.confidence) AS sql_score,
-       if(a.take != b.take, 'cross_take', 'cross_shot') AS pair_kind
-FROM inv a
-INNER JOIN inv b ON a.entity = b.entity AND a.attribute = b.attribute
-WHERE a.frame_id < b.frame_id
-  AND a.value != b.value
-  -- 'bottom-left' vs 'bottom-left corner' is the same value said twice, not a change
-  AND position(a.value, b.value) = 0 AND position(b.value, a.value) = 0
-  -- cross-take: the same shot at (nearly) the same moment; cross-shot: within one take
-  AND ((a.take != b.take AND a.shot = b.shot AND abs(a.t_s - b.t_s) <= {t_tol:Float32})
-       OR (a.take = b.take AND a.shot != b.shot))
-ORDER BY (pair_kind = 'cross_shot'), sql_score DESC
+SELECT * FROM (SELECT * FROM attr_pairs UNION ALL SELECT * FROM presence_pairs)
+ORDER BY (pair_kind = 'cross_shot'),
+         multiIf(attribute IN ('present','state','count','level','side','orientation','held_by','position'), 0, attribute = 'color', 1, 2),
+         sql_score DESC
 LIMIT {limit:UInt32}
 """

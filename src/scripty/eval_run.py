@@ -67,7 +67,7 @@ def _run_scene(video, project, sc, scene, frames_dir, every_s, max_per_shot, wor
         ingest_frames(project, scene, "A", a_frames, workers=workers)
         ingest_frames(project, scene, "CONTROL", control, workers=workers, reference_take="A")
         ingest_frames(project, scene, "PLANTED", planted, workers=workers, reference_take="A")
-        findings = analyze_scene(project, scene, verify_top=60, workers=4)
+        findings = analyze_scene(project, scene, verify_top=90, workers=4)
         pos = [f for f in findings if f["verdict"] == OPERATING["verdict"] and f["confidence"] >= OPERATING["min_confidence"]]
         planted_pos = [f for f in pos if {f["take_a"], f["take_b"]} == {"A", "PLANTED"} or "PLANTED" in (f["take_a"], f["take_b"])]
         control_pos = [f for f in pos if {f["take_a"], f["take_b"]} == {"A", "CONTROL"}]

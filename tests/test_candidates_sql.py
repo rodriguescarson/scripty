@@ -37,7 +37,7 @@ def test_candidates_find_cross_take_differences_only(ch):
         [project, "s1", "A", 1, 9.0, "fA9", "wine glass (left)", "prop", "level", "empty", 0.9, "center", "m"],
     ]
     db.client().insert("scripty.inventory", rows, column_names=cols)
-    out = db.query(CANDIDATES_SQL, {"project": project, "scene": "s1", "min_conf": 0.5, "limit": 50, "t_tol": 1.5})
+    out = db.query(CANDIDATES_SQL, {"project": project, "scene": "s1", "min_conf": 0.5, "limit": 50, "t_tol": 1.5, "reference": "A"})
     ents = [(o["entity"], o["pair_kind"]) for o in out]
     assert ("wine glass (left)", "cross_take") in ents
     assert ("wine glass (left)", "cross_shot") in ents
