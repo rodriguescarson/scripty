@@ -58,7 +58,7 @@ def frame(rel: str):
 def scenes():
     rows = db.query("""SELECT project, scene, count() AS frames, uniqExact(take) AS takes, uniqExact(shot) AS shots,
                        min(t_s) AS start_s, max(t_s) AS end_s FROM scripty.frames FINAL GROUP BY project, scene ORDER BY project, scene""")
-    f = db.query("""SELECT project, scene, countIf(verdict = 'continuity_error' AND confidence >= 0.6) AS errors, count() AS findings FROM scripty.findings FINAL GROUP BY project, scene""")
+    f = db.query("""SELECT project, scene, countIf(verdict = 'continuity_error' AND confidence >= 0.6 AND take_a != take_b) AS errors, count() AS findings FROM scripty.findings FINAL GROUP BY project, scene""")
     fm = {(x["project"], x["scene"]): x for x in f}
     for r in rows:
         r.update({"errors": fm.get((r["project"], r["scene"]), {}).get("errors", 0), "findings": fm.get((r["project"], r["scene"]), {}).get("findings", 0)})
@@ -74,6 +74,7 @@ def scene(project: str, scene: str):
     paths = {fr["frame_id"]: fr["url"] for fr in frames}
     for f in findings:
         f["url_a"] = paths.get(f["frame_a"]); f["url_b"] = paths.get(f["frame_b"])
+        f["pair_kind"] = "cross_take" if f["take_a"] != f["take_b"] else "cross_shot"
     labels = db.query("SELECT take, entity, planted_kind, description FROM scripty.eval_labels FINAL WHERE project = {p:String} AND scene = {s:String}", {"p": project, "s": scene})
     inventory_counts = db.query("SELECT take, count() AS rows, uniqExact(entity) AS entities FROM scripty.inventory FINAL WHERE project = {p:String} AND scene = {s:String} GROUP BY take", {"p": project, "s": scene})
     return {"project": project, "scene": scene, "frames": frames, "findings": findings, "labels": labels, "inventory": inventory_counts}

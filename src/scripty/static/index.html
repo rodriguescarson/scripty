@@ -38,14 +38,17 @@ async function loadScenes(){const r=await fetch('/api/scenes');SCENES=await r.js
  if(SCENES.length) openScene(SCENES[0].project,SCENES[0].scene,document.querySelector('.scene'));}
 async function openScene(p,s,el){document.querySelectorAll('.scene').forEach(x=>x.classList.remove('sel'));if(el)el.classList.add('sel');
  const d=await (await fetch(`/api/scene/${p}/${s}`)).json();
- const pos=d.findings.filter(f=>f.verdict==='continuity_error'&&f.confidence>=0.6);
+ const xt=d.findings.filter(f=>f.pair_kind==='cross_take'), xs=d.findings.filter(f=>f.pair_kind!=='cross_take');
+ const pos=xt.filter(f=>f.verdict==='continuity_error'&&f.confidence>=0.6);
  const takes=[...new Set(d.frames.map(f=>f.take))];
- const kp=[['scene',s],['takes',takes.join(' · ')],['frames',d.frames.length],['findings',d.findings.length],['confirmed errors',pos.length]];
+ const kp=[['scene',s],['takes',takes.join(' · ')],['frames',d.frames.length],['findings (across takes)',xt.length],['confirmed errors',pos.length]];
  let html=`<div class="kpis">${kp.map(([k,v])=>`<div class="kpi"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join('')}</div>`;
  if(d.labels.length) html+=`<p class="label">Planted ground truth for this evaluation scene: ${d.labels.map(l=>esc(l.description)).join(' · ')}</p>`;
- html+=d.findings.length?d.findings.map(f=>`<div class="finding"><div class="head"><div><span class="verdict v-${esc(f.verdict)}">${esc(f.verdict.replace('_',' '))}</span> <b>${esc(f.entity)}</b> · ${esc(f.attribute)} · <span class="mono">${esc(f.category)}</span></div><div class="mono">confidence ${Number(f.confidence).toFixed(2)} · sql ${Number(f.sql_score).toFixed(2)}</div></div>
+ const card=f=>`<div class="finding"><div class="head"><div><span class="verdict v-${esc(f.verdict)}">${esc(f.verdict.replace('_',' '))}</span> <b>${esc(f.entity)}</b> · ${esc(f.attribute)} · <span class="mono">${esc(f.category)}</span></div><div class="mono">confidence ${Number(f.confidence).toFixed(2)} · sql ${Number(f.sql_score).toFixed(2)}</div></div>
  <div class="pair"><figure><img loading="lazy" src="${f.url_a}" alt=""><figcaption>${esc(f.take_a)} · ${esc(f.value_a)}</figcaption></figure><figure><img loading="lazy" src="${f.url_b}" alt=""><figcaption>${esc(f.take_b)} · ${esc(f.value_b)}</figcaption></figure></div>
- <p class="expl">${esc(f.explanation)}</p></div>`).join(''):'<p class="muted">No findings yet for this scene.</p>';
+ <p class="expl">${esc(f.explanation)}</p></div>`;
+ html+=xt.length?xt.map(card).join(''):'<p class="muted">No cross-take findings yet for this scene.</p>';
+ if(xs.length) html+=`<details style="margin-top:12px"><summary class="muted">Across shots within one take (${xs.length}) — different setups, weaker evidence; not counted above</summary>${xs.map(card).join('')}</details>`;
  $('#board').innerHTML=html;}
 async function ask(){const q=$('#q').value.trim();if(!q)return;const a=$('#a');a.hidden=false;a.textContent='thinking… (SQL through mcp-clickhouse)';
  try{const r=await fetch('/api/ask',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q})});const j=await r.json();a.textContent=(j.answer||JSON.stringify(j))+`\n\n[tools: ${(j.tool_calls||[]).join(', ')||'none'}]`;}catch(e){a.textContent='error: '+e;}}
