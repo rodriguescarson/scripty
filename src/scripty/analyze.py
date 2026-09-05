@@ -40,7 +40,7 @@ def analyze_scene(project: str, scene: str, min_conf: float = 0.5, verify_top: i
     errors: list[str] = []
 
     def one(c):
-        pa, pb = _frame_path(c["frame_a"]), _frame_path(c["frame_b"])
+        pa, pb = paths.get(c["frame_a"]), paths.get(c["frame_b"])
         if not pa.exists() or not pb.exists():
             raise FileNotFoundError(f"{pa.name} / {pb.name}")
         v = verify_pair(pa, pb, c["entity"], c["attribute"], c["value_a"], c["value_b"])
