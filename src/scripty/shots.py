@@ -90,11 +90,24 @@ def sample_frames(video: Path, shots: list[Shot], out_dir: Path, every_s: float 
             h, w = frame.shape[:2]
             if w > width:
                 frame = cv2.resize(frame, (width, int(h * width / w)))
+            frame = mask_corners(frame)
             p = out_dir / f"shot{s.index:03d}_t{t:07.2f}.jpg"
             cv2.imwrite(str(p), frame, [cv2.IMWRITE_JPEG_QUALITY, 88])
             frames.append(Frame(s.index, round(t, 2), p))
     cap.release()
     return frames
+
+
+def mask_corners(frame: np.ndarray, frac_x: float = 0.16, frac_y: float = 0.20) -> np.ndarray:
+    """Blur both bottom corners: archive prints carry a station watermark there, and a mirrored
+    watermark would let a detector 'find' a flipped frame for the wrong reason. Applied to every
+    frame of every take, so it carries no information."""
+    h, w = frame.shape[:2]
+    y0 = int(h * (1 - frac_y))
+    for x0, x1 in ((0, int(w * frac_x)), (int(w * (1 - frac_x)), w)):
+        roi = frame[y0:h, x0:x1]
+        frame[y0:h, x0:x1] = cv2.GaussianBlur(roi, (51, 51), 0)
+    return frame
 
 
 def cut_clip(video: Path, start_s: float, end_s: float, out: Path) -> Path:
