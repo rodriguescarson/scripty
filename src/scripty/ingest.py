@@ -20,15 +20,32 @@ def reference_entities(project: str, scene: str, reference_take: str) -> dict[in
     return {int(r["shot"]): list(r["ents"]) for r in rows}
 
 
-def ingest_frames(project: str, scene: str, take: str, frames: list[Frame], workers: int = 6, reference_take: str | None = None) -> dict:
+SHEET_ATTRS = ("present", "position", "state", "color", "count", "level", "side", "held_by", "orientation")
+
+
+def reference_sheet(project: str, scene: str, reference_take: str) -> dict[int, list[str]]:
+    """v2 continuity sheet: per shot, 'entity: attr=value, attr=value' for every reference entity, so the other take
+    must re-report every attribute (v1 only listed names, and the model answered with presence rows alone)."""
+    rows = db.query("SELECT shot, entity, attribute, anyLast(value) AS value FROM scripty.inventory FINAL WHERE project = {p:String} AND scene = {s:String} AND take = {t:String} GROUP BY shot, entity, attribute ORDER BY shot, entity, attribute", {"p": project, "s": scene, "t": reference_take})
+    sheet: dict[int, dict[str, list[str]]] = {}
+    for r in rows:
+        if r["attribute"] not in SHEET_ATTRS:
+            continue
+        sheet.setdefault(int(r["shot"]), {}).setdefault(r["entity"], []).append(f"{r['attribute']}={r['value']}")
+    return {shot: [f"{e}: {', '.join(attrs)}" for e, attrs in ents.items()] for shot, ents in sheet.items()}
+
+
+def ingest_frames(project: str, scene: str, take: str, frames: list[Frame], workers: int = 6, reference_take: str | None = None, reference_mode: str = "v1") -> dict:
     """Inventory a list of already-sampled frames (used by both video takes and planted frame sets).
-    With `reference_take`, every frame is inventoried against that take's entity list for the same shot."""
+    With `reference_take`, every frame is inventoried against that take's entity list for the same shot
+    (reference_mode 'v2': against the full attribute sheet, every attribute re-reported)."""
     frame_rows, inv_rows, failures = [], [], []
-    refs = reference_entities(project, scene, reference_take) if reference_take else {}
+    refs = reference_entities(project, scene, reference_take) if reference_take and reference_mode == "v1" else {}
+    sheet = reference_sheet(project, scene, reference_take) if reference_take and reference_mode == "v2" else {}
 
     def one(f: Frame):
         fid = frame_id(project, scene, take, f.shot, f.t_s)
-        inv = inventory_frame(f.path, reference=refs.get(f.shot))
+        inv = inventory_frame(f.path, reference=refs.get(f.shot), reference_rows=sheet.get(f.shot))
         return fid, f, inv
 
     with cf.ThreadPoolExecutor(max_workers=workers) as ex:

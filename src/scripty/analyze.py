@@ -6,12 +6,17 @@ import hashlib
 from pathlib import Path
 
 from . import db
-from .schema import CANDIDATES_SQL
+from .schema import CANDIDATES_SQL, CANDIDATES_SQL_V2
 from .verify import verify_pair
 
 
-def candidates(project: str, scene: str, min_conf: float = 0.5, limit: int = 200, t_tol: float = 1.5, reference: str = "A") -> list[dict]:
-    return db.query(CANDIDATES_SQL, {"project": project, "scene": scene, "min_conf": min_conf, "limit": limit, "t_tol": t_tol, "reference": reference})
+def candidates(project: str, scene: str, min_conf: float = 0.5, limit: int = 200, t_tol: float = 1.5, reference: str = "A", version: int = 1) -> list[dict]:
+    sql = CANDIDATES_SQL_V2 if version == 2 else CANDIDATES_SQL
+    rows = db.query(sql, {"project": project, "scene": scene, "min_conf": min_conf, "limit": limit, "t_tol": t_tol, "reference": reference})
+    if version == 2:
+        from .flips import flip_candidates
+        rows = flip_candidates(project, scene, reference=reference) + rows
+    return rows
 
 
 def frame_paths(project: str, scene: str) -> dict[str, Path]:
@@ -39,10 +44,11 @@ def dedupe(cands: list[dict]) -> list[dict]:
     return out
 
 
-def analyze_scene(project: str, scene: str, min_conf: float = 0.5, verify_top: int = 80, workers: int = 4, category_map=None, reference: str = "A") -> list[dict]:
+def analyze_scene(project: str, scene: str, min_conf: float = 0.5, verify_top: int = 80, workers: int = 4, category_map=None, reference: str = "A", version: int = 1) -> list[dict]:
     """Verify every cross-take candidate (A vs each other take, same shot and moment) up to `verify_top`;
-    cross-shot pairs within a take only fill whatever budget is left."""
-    allc = dedupe(candidates(project, scene, min_conf=min_conf, limit=600, reference=reference))
+    cross-shot pairs within a take only fill whatever budget is left. version=2 uses the run-2 candidate SQL
+    (presence fix, controlled vocabulary) plus the lateral-order flip detector."""
+    allc = dedupe(candidates(project, scene, min_conf=min_conf, limit=600, reference=reference, version=version))
     cross_take = [c for c in allc if c["pair_kind"] == "cross_take"]
     cross_shot = [c for c in allc if c["pair_kind"] != "cross_take"]
     cands = (cross_take + cross_shot)[:verify_top]

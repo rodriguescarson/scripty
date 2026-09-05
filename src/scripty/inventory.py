@@ -53,9 +53,21 @@ EXACTLY the same entity string, with its current attribute value in this frame (
 Reference entities: {refs}"""
 
 
-def inventory_frame(image_path: Path, model: str = MODEL, retries: int = 3, reference: list[str] | None = None) -> Inventory:
+REFERENCE_SUFFIX_V2 = """
+
+CONTINUITY SHEET from the reference take of this same shot. For EVERY entity below, output one row for EVERY attribute
+listed for it, with the value as seen in THIS frame (same controlled vocabulary; repeat the value if unchanged, give the
+new value if it differs; use "absent" for attribute "present" if the entity is not visible here and then skip its other
+attributes). Use EXACTLY the same entity strings. Then add any new continuity-relevant entities not on the sheet.
+Sheet: {refs}"""
+
+
+def inventory_frame(image_path: Path, model: str = MODEL, retries: int = 3, reference: list[str] | None = None, reference_rows: list[str] | None = None) -> Inventory:
     img = types.Part.from_bytes(data=image_path.read_bytes(), mime_type="image/jpeg")
-    prompt = PROMPT + (REFERENCE_SUFFIX.format(refs="; ".join(sorted(set(reference))[:40])) if reference else "")
+    if reference_rows:
+        prompt = PROMPT + REFERENCE_SUFFIX_V2.format(refs=" | ".join(reference_rows[:40]))
+    else:
+        prompt = PROMPT + (REFERENCE_SUFFIX.format(refs="; ".join(sorted(set(reference))[:40])) if reference else "")
     last: Exception | None = None
     for attempt in range(retries):
         try:
