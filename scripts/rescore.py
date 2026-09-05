@@ -37,7 +37,8 @@ def match_strict(f, l):
 def score(matcher):
     hits = tp = pos = 0; labels = 0; by_kind = {}
     for r in recs:
-        planted_pos = [f for f in r["findings"] if f["verdict"] == "continuity_error" and f["confidence"] >= 0.6 and "PLANTED" in (f["take_a"], f["take_b"])]
+        # pre-registered pairs only: A vs PLANTED (same shot, same moment). PLANTED-vs-PLANTED cross-shot pairs are not planted evidence.
+        planted_pos = [f for f in r["findings"] if f["verdict"] == "continuity_error" and f["confidence"] >= 0.6 and {f["take_a"], f["take_b"]} == {"A", "PLANTED"}]
         for l in r["labels"]:
             labels += 1
             h = any(matcher(f, l) for f in planted_pos)
