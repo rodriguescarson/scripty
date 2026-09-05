@@ -55,7 +55,7 @@ attr_pairs AS (
 presence_pairs AS (
   SELECT a.entity AS entity, a.entity_kind AS entity_kind, 'present' AS attribute,
          a.take AS take_a, a.frame_id AS frame_a, a.value AS value_a, a.confidence AS conf_a,
-         b.take AS take_b, b.frame_id AS frame_b, if(b.frame_id = '', 'absent (not reported)', b.value) AS value_b, if(b.frame_id = '', 0.6, b.confidence) AS conf_b,
+         fr.take AS take_b, fr.frame_id AS frame_b, if(b.frame_id = '', 'absent (not reported)', b.value) AS value_b, if(b.frame_id = '', 0.6, b.confidence) AS conf_b,
          least(a.confidence, if(b.frame_id = '', 0.6, b.confidence)) AS sql_score, 'cross_take' AS pair_kind
   FROM presence a
   INNER JOIN (SELECT DISTINCT take, shot, t_s, frame_id FROM inv) fr ON fr.shot = a.shot AND fr.t_s = a.t_s
