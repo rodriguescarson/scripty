@@ -7,3 +7,4 @@ build/
 *.mp4
 *.mkv
 *.ogv
+docs/*.mp4
