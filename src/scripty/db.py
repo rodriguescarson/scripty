@@ -33,7 +33,7 @@ def _retry(fn, attempts: int = 4):
         except Exception as e:  # noqa: BLE001
             msg = str(e)
             last = e
-            transient = any(k in msg for k in ("503", "502", "504", "timed out", "Timeout", "Connection", "RemoteDisconnected", "reset by peer", "Max retries", "Temporary"))
+            transient = any(k in msg for k in ("500", "Server Error", "503", "502", "504", "timed out", "Timeout", "Connection", "RemoteDisconnected", "reset by peer", "Max retries", "Temporary"))
             if i < attempts - 1 and transient:
                 _local.client = None  # drop the connection; a fresh one is made on the next call
                 time.sleep(2 * (i + 1))
