@@ -8,3 +8,5 @@ build/
 *.mkv
 *.ogv
 docs/*.mp4
+docs/eval/*.progress.jsonl
+docs/eval/charade-pilot*
