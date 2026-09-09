@@ -6,12 +6,12 @@ import json
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import db
+from . import budget, db
 from .agent import ask_async
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -85,7 +85,20 @@ class Ask(BaseModel):
 
 
 @app.post("/api/ask")
-async def ask(body: Ask):
+async def ask(body: Ask, request: Request):
+    # The only endpoint that spends money. Checked before the model runs, so a
+    # refused request costs nothing. Cloud Run puts the caller first in
+    # X-Forwarded-For and appends its own hop, so take the first entry.
+    fwd = request.headers.get("x-forwarded-for", "")
+    client = fwd.split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    try:
+        budget.check(client)
+    except budget.OverBudget as e:
+        return JSONResponse(
+            {"answer": e.detail, "tool_calls": [], "rate_limited": True},
+            status_code=429,
+            headers={"Retry-After": str(e.retry_after)},
+        )
     answer, calls = await ask_async(body.question)
     return {"answer": answer, "tool_calls": calls}
 
@@ -108,6 +121,6 @@ def eval_results():
 def health():
     try:
         v = db.query("SELECT version() AS v")[0]["v"]
-        return {"ok": True, "clickhouse": v}
+        return {"ok": True, "clickhouse": v, "ask_budget": budget.state()}
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)[:200]}, status_code=503)
