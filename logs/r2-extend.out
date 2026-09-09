@@ -1,0 +1,11 @@
+r2 extend start 18:21:27
+scene007: labels 5 | planted positives 0 | control positives 0 | 3.8s
+scene023: labels 3 | planted positives 0 | control positives 0 | 4.1s
+scene025: labels 11 | planted positives 0 | control positives 0 | 3.8s
+[analyze] charade-r2/scene030: order-swap check downgraded 9 of 20 positives
+scene030: labels 12 | planted positives 15 | control positives 2 | 226.6s
+scene031: labels 4 | planted positives 0 | control positives 0 | 3.8s
+scene036: labels 10 | planted positives 0 | control positives 0 | 3.6s
+rerun done 18:25:53; rescoring
+{"n_scenes": 6, "n_labels": 45, "recall": 0.267, "precision": 1.0, "control_fpr_per_scene": 0.333, "pass": false, "strict": {"recall": 0.156, "precision": 0.933, "control_fpr_per_scene": 0.333, "planted_positives": 15}, "pass_strict": false}
+R2 EXTEND DONE 18:25:55

@@ -1,0 +1,41 @@
+{
+ "run": 2,
+ "n_scenes": 6,
+ "n_labels": 45,
+ "recall": 0.267,
+ "precision": 1.0,
+ "control_fpr_per_scene": 0.333,
+ "by_kind": {
+  "flipped": {
+   "n": 22,
+   "hit": 8
+  },
+  "recolored": {
+   "n": 14,
+   "hit": 1
+  },
+  "removed": {
+   "n": 4,
+   "hit": 1
+  },
+  "moved": {
+   "n": 5,
+   "hit": 2
+  }
+ },
+ "operating_point": {
+  "verdict": "continuity_error",
+  "min_confidence": 0.6
+ },
+ "pass": false,
+ "pass_strict": false,
+ "strict": {
+  "recall": 0.156,
+  "precision": 0.933,
+  "control_fpr_per_scene": 0.333,
+  "planted_positives": 15
+ },
+ "ran_at": "2026-09-09 18:25 IST",
+ "elapsed_s": 245.7,
+ "failed_scenes": []
+}

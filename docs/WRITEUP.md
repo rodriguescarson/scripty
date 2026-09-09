@@ -1,6 +1,6 @@
 # Scripty — the continuity agent that publishes its own false-positive rate
 
-_Devpost story draft. Numbers in «» are filled from `docs/eval/*.json` after the pre-registered run._
+_Every number below comes from `docs/eval/charade-r2.json`, produced by the pre-registered run in `docs/EVAL_PLAN.md`. The evaluation tab of the live app serves the same file._
 
 ## Inspiration
 
@@ -48,9 +48,36 @@ Three things the pilot scenes showed, all visible in the app:
 
 ## The evaluation (pre-registered)
 
-Population: «N» scenes selected deterministically from the full film (30–150 s, 3–12 shots), not a hand-picked sample. Three takes per scene: **A** (original frames), **CONTROL** (reframed and re-exposed, nothing changed), **PLANTED** (one planted error per shot: prop removed, moved, recoloured, or the frame mirrored). Operating point fixed before the run: `verdict = continuity_error AND confidence ≥ 0.6`. Pass conditions written first: recall ≥ 60 %, precision ≥ 50 %, control ≤ 1 positive per scene.
+Population: **6** scenes selected deterministically from the full film (30–150 s, 3–12 shots), not a hand-picked sample. Three takes per scene: **A** (original frames), **CONTROL** (reframed and re-exposed, nothing changed), **PLANTED** (one planted error per shot: prop removed, moved, recoloured, or the frame mirrored). Operating point fixed before the run: `verdict = continuity_error AND confidence ≥ 0.6`. Pass conditions written first: recall ≥ 60 %, precision ≥ 50 %, control ≤ 1 positive per scene.
 
-Result: «recall / precision / control FPR / PASS-FAIL, per-kind table».
+Result: **it does not pass.** Recall is 26.7 %, against the 60 % written down
+first. Precision is 100 % and the control take produced 0.33 false positives per
+scene, both comfortably inside their limits. So the honest summary is that
+everything it flags is real, and it finds about a quarter of what is there.
+
+| | run 1 | run 2 | pre-registered |
+|---|---|---|---|
+| scenes | 4 | 6 | — |
+| planted labels | 31 | 45 | — |
+| recall | 38.7 % | **26.7 %** | ≥ 60 % — **fail** |
+| precision | 100 % | **100 %** | ≥ 50 % — pass |
+| control FP / scene | 2.75 | **0.33** | ≤ 1 — pass |
+
+Per kind, run 2: flipped 8/22, moved 2/5, removed 1/4, recoloured **1/14**.
+
+Two things in that table are worth more than the headline. The control false
+positive rate fell from 2.75 per scene to 0.33 once the reference-take inventory
+anchored the labelling, which is the difference between a shortlist a supervisor
+would throw away and one they would read. And the run-2 changes that fixed
+mirrored frames (0/19 detected in run 1, 8/22 in run 2) coincided with recolour
+detection collapsing to 1/14 — a regression I would not have seen without the
+per-kind breakdown, and which I have not yet explained.
+
+A caveat on the small numbers: an earlier single-scene rerun scored 100 % recall,
+and I nearly reported that. Extending the same code to all six scenes brought it
+to 26.7 %. One scene was not evidence, and the difference between those two
+numbers is the reason the population was fixed in advance rather than chosen
+after seeing results.
 
 ## Challenges I ran into
 
