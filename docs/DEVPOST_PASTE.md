@@ -1,6 +1,6 @@
 # Devpost paste pack — Scripty (Agentic Cinema · ClickHouse track)
 
-Form: https://agentic-cinema.devpost.com/ → Enter a submission. Deadline Sep 9, 2:00 PM PDT (Sep 10, 02:30 IST). Submit by Sep 8.
+Form: https://agentic-cinema.devpost.com/ → Enter a submission. Deadline Sep 9, 2:00 PM PDT (Sep 10, 02:30 IST).
 
 **Project name:** Scripty
 
@@ -12,11 +12,11 @@ Form: https://agentic-cinema.devpost.com/ → Enter a submission. Deadline Sep 9
 
 **Hosted URL:** https://scripty-q62ufgdryq-uc.a.run.app
 
-**Repo (public before submitting):** https://github.com/rodriguescarson/scripty — Apache-2.0, detected in About.
+**Repo:** https://github.com/rodriguescarson/scripty — public, Apache-2.0, detected in About.
 
-**Video:** «YouTube link, ≤ 3 min, public»
+**Video:** `docs/scripty-demo.mp4` (108 s, 1280x720, 3.1 MB) → upload to YouTube as **public**, paste the link.
 
-**Story:** paste `docs/WRITEUP.md` (numbers filled from `docs/eval/charade.json`).
+**Story:** paste `docs/WRITEUP.md` (numbers from `docs/eval/charade-r2.json`, the run-2 six-scene result).
 
 **Built with:** google-adk, google-genai, vertex-ai, gemini, clickhouse, mcp, cloud-run, cloud-storage, fastapi, opencv, python
 
@@ -24,6 +24,9 @@ Form: https://agentic-cinema.devpost.com/ → Enter a submission. Deadline Sep 9
 
 **Data sources (rules ask):** *Charade* (1963) and *Night of the Living Dead* (1968), public domain, archive.org; all inventories/findings are generated at runtime; the evaluation set is planted on public-domain frames with a published planting log.
 
-**Findings & learnings (rules ask):** «from the eval: recall / precision / control FPR / per-kind; the verifier's confidence is uninformative (always 1.0) — reported, not hidden; intentional-vs-error confusion examples».
-
-Also make the repo public: `gh repo edit rodriguescarson/scripty --visibility public --accept-visibility-change-consequences` (Carson runs this; the classifier blocks Claude).
+**Findings & learnings (rules ask):** Pre-registered on 6 scenes / 45 planted labels, published as it came out:
+recall **0.267** (bar was 0.60 — **FAIL**), precision **1.00** (bar 0.50), control false positives **0.33/scene** (bar 1.0).
+Per kind: flipped 8/22, moved 2/5, removed 1/4, recoloured 1/14. Anchoring the pass on a reference-take inventory cut
+control false positives from 2.75 to 0.33 per scene — the single biggest effect measured. An earlier single-scene rerun
+scored 1.00 recall and is reported rather than quoted: one scene was not evidence. The verifier's own confidence is
+uninformative (always 1.0), so it is reported, not used as a gate.
