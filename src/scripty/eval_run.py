@@ -63,7 +63,7 @@ def _run_scene(video, project, sc, scene, frames_dir, every_s, max_per_shot, wor
     if True:
         a_frames = sample_frames(video, sc.shots, frames_dir / project / scene / "A", every_s=every_s, max_per_shot=max_per_shot)
         control, planted, labels = plant_scene(a_frames, frames_dir / project, scene)
-        db.insert("eval_labels", [{"project": project, "scene": scene, "take": l.take, "entity": l.entity, "attribute": l.planted_kind, "planted_kind": l.planted_kind, "description": l.description} for l in labels])
+        db.insert("eval_labels", [{"project": project, "scene": scene, "take": l.take, "shot": l.shot, "entity": l.entity, "attribute": l.planted_kind, "planted_kind": l.planted_kind, "description": l.description} for l in labels])
         ingest_frames(project, scene, "A", a_frames, workers=workers)
         ingest_frames(project, scene, "CONTROL", control, workers=workers, reference_take="A")
         ingest_frames(project, scene, "PLANTED", planted, workers=workers, reference_take="A")

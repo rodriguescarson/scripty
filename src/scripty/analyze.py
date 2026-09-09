@@ -14,6 +14,8 @@ def candidates(project: str, scene: str, min_conf: float = 0.5, limit: int = 200
     sql = CANDIDATES_SQL_V2 if version == 2 else CANDIDATES_SQL
     rows = db.query(sql, {"project": project, "scene": scene, "min_conf": min_conf, "limit": limit, "t_tol": t_tol, "reference": reference})
     if version == 2:
+        # flips are handled by the deterministic mirror test in analyze_scene (the model is mirror-blind);
+        # the inventory-based lateral detector stays as a cheap extra signal
         from .flips import flip_candidates
         rows = flip_candidates(project, scene, reference=reference) + rows
     return rows
@@ -79,6 +81,35 @@ def analyze_scene(project: str, scene: str, min_conf: float = 0.5, verify_top: i
                 continue
             fid = hashlib.sha1(f"{project}|{scene}|{c['entity']}|{c['attribute']}|{c['frame_a']}|{c['frame_b']}".encode()).hexdigest()[:12]
             findings.append({"project": project, "scene": scene, "finding_id": fid, "category": c["entity_kind"], "entity": c["entity"], "attribute": c["attribute"], "take_a": c["take_a"], "frame_a": c["frame_a"], "value_a": c["value_a"], "take_b": c["take_b"], "frame_b": c["frame_b"], "value_b": c["value_b"], "sql_score": float(c["sql_score"]), "verified": 1, "verdict": v.verdict, "confidence": float(v.confidence), "explanation": v.explanation})
+    if version == 2:
+        # order-swap consistency check: a confirmed error must survive presenting the frames in the other order.
+        # Run-1 control false positives were confident verdicts on a frame and its own jittered copy; most of those
+        # do not reproduce when frame A and frame B are swapped, a genuine difference does.
+        positives = [f for f in findings if f["verdict"] == "continuity_error" and f["confidence"] >= 0.6]
+
+        def swap(f):
+            pa, pb = paths.get(f["frame_a"]), paths.get(f["frame_b"])
+            return f, verify_pair(pb, pa, f["entity"], f["attribute"], f["value_b"], f["value_a"])
+
+        downgraded = 0
+        with cf.ThreadPoolExecutor(max_workers=workers) as ex:
+            for fut in cf.as_completed([ex.submit(swap, f) for f in positives]):
+                try:
+                    f, v2 = fut.result()
+                except Exception as e:
+                    errors.append(f"swap {type(e).__name__}: {str(e)[:100]}")
+                    continue
+                if v2.verdict != "continuity_error":
+                    f["verdict"] = "uncertain"
+                    f["confidence"] = min(f["confidence"], 0.5)
+                    f["explanation"] = f["explanation"][:600] + f" | order-swap check disagreed ({v2.verdict}, {v2.confidence:.2f}): {v2.explanation[:200]}"
+                    downgraded += 1
+                else:
+                    f["confidence"] = round(min(f["confidence"], float(v2.confidence)), 3)
+        if positives:
+            print(f"[analyze] {project}/{scene}: order-swap check downgraded {downgraded} of {len(positives)} positives", flush=True)
+        from .flips import flip_findings_pixel
+        findings.extend(flip_findings_pixel(project, scene, reference=reference))
     db.insert("findings", findings)
     if errors:
         print(f"[analyze] {project}/{scene}: {len(errors)} verifications failed, e.g. {errors[0]}", flush=True)

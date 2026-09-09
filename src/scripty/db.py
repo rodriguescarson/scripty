@@ -11,6 +11,13 @@ from .schema import DDL
 _local = threading.local()
 
 
+def _settings() -> dict:
+    """Per-query memory cap (bytes) from CLICKHOUSE_MAX_MEMORY — the 4 GiB Cloud Run node dies when two heavy
+    queries overlap, so side jobs run with a smaller cap than the main run."""
+    cap = os.getenv("CLICKHOUSE_MAX_MEMORY")
+    return {"max_memory_usage": int(cap)} if cap else {}
+
+
 def client():
     """One clickhouse-connect client per thread: the HTTP client is not safe for concurrent queries."""
     c = getattr(_local, "client", None)
@@ -19,7 +26,7 @@ def client():
     host = os.getenv("CLICKHOUSE_HOST", "localhost")
     secure = os.getenv("CLICKHOUSE_SECURE", "false").lower() == "true"
     port = int(os.getenv("CLICKHOUSE_PORT", "443" if secure else "8123"))
-    _local.client = clickhouse_connect.get_client(host=host, port=port, username=os.getenv("CLICKHOUSE_USER", "default"), password=os.getenv("CLICKHOUSE_PASSWORD", ""), secure=secure, connect_timeout=20, send_receive_timeout=120)
+    _local.client = clickhouse_connect.get_client(settings=_settings(), host=host, port=port, username=os.getenv("CLICKHOUSE_USER", "default"), password=os.getenv("CLICKHOUSE_PASSWORD", ""), secure=secure, connect_timeout=20, send_receive_timeout=120)
     return _local.client
 
 

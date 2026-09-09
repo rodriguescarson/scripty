@@ -19,7 +19,13 @@ def backup(project: str) -> dict:
 
 
 def restore_all_if_empty() -> dict:
-    """On app boot: if ClickHouse has no frames, pull every exported project back in."""
+    """On app boot: if ClickHouse has no frames, pull every exported project back in.
+
+    ensure_schema() runs first: the node's disk is ephemeral, so a restart drops the database
+    itself, not just the rows. Asking is_empty() first raises UNKNOWN_DATABASE and the caller
+    skips the restore — the one path meant to survive a wipe failing on exactly a wipe.
+    """
+    db.ensure_schema()
     if not db.is_empty():
         return {"restored": False}
     out = {}

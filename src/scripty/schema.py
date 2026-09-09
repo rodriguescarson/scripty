@@ -16,10 +16,13 @@ DDL = [
         sql_score Float32, verified UInt8, verdict LowCardinality(String), confidence Float32, explanation String,
         created_at DateTime DEFAULT now()
     ) ENGINE = ReplacingMergeTree ORDER BY (project, scene, finding_id)""",
+    # shot is part of the key: a scene plants the same kind on the same entity in several shots
+    # (eight 'whole frame / flipped' labels in scene030). Without it ReplacingMergeTree collapses
+    # those into one row and the board under-reports the ground truth it is scored against.
     """CREATE TABLE IF NOT EXISTS scripty.eval_labels (
-        project String, scene String, take String, entity String, attribute LowCardinality(String), planted_kind LowCardinality(String), description String,
+        project String, scene String, take String, shot UInt16, entity String, attribute LowCardinality(String), planted_kind LowCardinality(String), description String,
         created_at DateTime DEFAULT now()
-    ) ENGINE = ReplacingMergeTree ORDER BY (project, scene, take, entity, attribute)""",
+    ) ENGINE = ReplacingMergeTree ORDER BY (project, scene, take, shot, entity, attribute)""",
 ]
 
 # The continuity query is the product. Same scene, same entity+attribute, different value across takes
@@ -92,6 +95,10 @@ presence AS (
          max(confidence) AS confidence, count() AS n_rows
   FROM inv GROUP BY take, shot, t_s, frame_id, entity
 ),
+-- run 2: the inferred-absence guard counts reference rows across the whole shot, not one sampled frame
+shot_rows AS (
+  SELECT take, shot, entity, count() AS n_shot_rows FROM inv GROUP BY take, shot, entity
+),
 attr_pairs AS (
   SELECT a.entity AS entity, a.entity_kind AS entity_kind, a.attribute AS attribute,
          a.take AS take_a, a.frame_id AS frame_a, a.value AS value_a, a.confidence AS conf_a,
@@ -115,10 +122,11 @@ presence_pairs AS (
          fr.take AS take_b, fr.frame_id AS frame_b, if(b.frame_id = '', 'absent (not reported)', b.value) AS value_b, if(b.frame_id = '', 0.6, b.confidence) AS conf_b,
          least(a.confidence, if(b.frame_id = '', 0.6, b.confidence)) AS sql_score, 'cross_take' AS pair_kind
   FROM presence a
+  INNER JOIN shot_rows sr ON sr.take = a.take AND sr.shot = a.shot AND sr.entity = a.entity
   INNER JOIN (SELECT DISTINCT take, shot, t_s, frame_id FROM inv) fr ON fr.shot = a.shot AND fr.t_s = a.t_s
   LEFT JOIN presence b ON b.frame_id = fr.frame_id AND b.entity = a.entity
   WHERE fr.take != a.take AND a.take = {reference:String} AND a.entity_kind IN ('prop','set_dressing','wardrobe')
-    AND ((b.frame_id = '' AND a.n_rows >= 2) OR (b.frame_id != '' AND b.value != a.value))
+    AND ((b.frame_id = '' AND sr.n_shot_rows >= 2) OR (b.frame_id != '' AND b.value != a.value))
 )
 SELECT * FROM (SELECT * FROM attr_pairs UNION ALL SELECT * FROM presence_pairs)
 ORDER BY (pair_kind = 'cross_shot'),

@@ -58,14 +58,17 @@ REFERENCE_SUFFIX_V2 = """
 CONTINUITY SHEET from the reference take of this same shot. For EVERY entity below, output one row for EVERY attribute
 listed for it, with the value as seen in THIS frame (same controlled vocabulary; repeat the value if unchanged, give the
 new value if it differs; use "absent" for attribute "present" if the entity is not visible here and then skip its other
-attributes). Use EXACTLY the same entity strings. Then add any new continuity-relevant entities not on the sheet.
+attributes). Use EXACTLY the same entity strings. The 8–25 item limit above does NOT apply here: output one row per
+sheet attribute even if that is 60–120 rows, then add any new continuity-relevant entities not on the sheet.
 Sheet: {refs}"""
 
 
 def inventory_frame(image_path: Path, model: str = MODEL, retries: int = 3, reference: list[str] | None = None, reference_rows: list[str] | None = None) -> Inventory:
     img = types.Part.from_bytes(data=image_path.read_bytes(), mime_type="image/jpeg")
+    max_tokens = 4096
     if reference_rows:
-        prompt = PROMPT + REFERENCE_SUFFIX_V2.format(refs=" | ".join(reference_rows[:40]))
+        prompt = PROMPT + REFERENCE_SUFFIX_V2.format(refs=" | ".join(reference_rows[:60]))
+        max_tokens = 16384
     else:
         prompt = PROMPT + (REFERENCE_SUFFIX.format(refs="; ".join(sorted(set(reference))[:40])) if reference else "")
     last: Exception | None = None
@@ -74,7 +77,7 @@ def inventory_frame(image_path: Path, model: str = MODEL, retries: int = 3, refe
             res = client().models.generate_content(
                 model=model,
                 contents=[prompt, img],
-                config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Inventory, temperature=0.1, max_output_tokens=4096),
+                config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Inventory, temperature=0.1, max_output_tokens=max_tokens),
             )
             return Inventory.model_validate_json(res.text or "{}")
         except Exception as e:  # 429/503/parse — retry with backoff

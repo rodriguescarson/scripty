@@ -1,52 +1,52 @@
 {
  "plan": {
-  "scenes": 3,
-  "labels": 19,
-  "recall": 0.0,
-  "precision": null,
-  "planted_positives": 0,
-  "control_fpr_per_scene": 1.0,
+  "scenes": 4,
+  "labels": 31,
+  "recall": 0.387,
+  "precision": 1.0,
+  "planted_positives": 14,
+  "control_fpr_per_scene": 2.75,
   "by_kind": {
-   "recolored": {
-    "n": 5,
+   "flipped": {
+    "n": 19,
     "hit": 0
    },
-   "flipped": {
-    "n": 9,
-    "hit": 0
+   "recolored": {
+    "n": 6,
+    "hit": 6
    },
    "removed": {
-    "n": 4,
-    "hit": 0
+    "n": 3,
+    "hit": 3
    },
    "moved": {
-    "n": 1,
-    "hit": 0
+    "n": 3,
+    "hit": 3
    }
   }
  },
  "strict": {
-  "scenes": 3,
-  "labels": 19,
-  "recall": 0.0,
-  "precision": null,
-  "planted_positives": 0,
-  "control_fpr_per_scene": 1.0,
+  "scenes": 4,
+  "labels": 31,
+  "recall": 0.032,
+  "precision": 0.071,
+  "planted_positives": 14,
+  "control_fpr_per_scene": 2.75,
   "by_kind": {
-   "recolored": {
-    "n": 5,
+   "flipped": {
+    "n": 19,
     "hit": 0
    },
-   "flipped": {
-    "n": 9,
-    "hit": 0
+   "recolored": {
+    "n": 6,
+    "hit": 1
    },
    "removed": {
-    "n": 4,
+    "n": 3,
     "hit": 0
    },
    "moved": {
-    "n": 1,
+    "n": 3,
     "hit": 0
    }
   }

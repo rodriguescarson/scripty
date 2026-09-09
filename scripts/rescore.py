@@ -19,9 +19,19 @@ def words(s):
     return {w for w in s.lower().replace("(", " ").replace(")", " ").replace("'", "").split() if len(w) > 3 and w not in STOP}
 
 
+LATERAL = ("left", "right")
+
+
+def lateral_swap(f):
+    """held_by / position values that both name a side and disagree — the symptom a mirrored frame leaves on any attribute."""
+    va, vb = f["value_a"].lower(), f["value_b"].lower()
+    sa = [w for w in LATERAL if w in va]; sb = [w for w in LATERAL if w in vb]
+    return len(sa) == 1 and len(sb) == 1 and sa != sb
+
+
 def match_plan(f, l):
     if l["planted_kind"] == "flipped":
-        return f["attribute"] in FLIP_ATTRS or f["category"] in FLIP_ATTRS
+        return f["attribute"] in FLIP_ATTRS or f["category"] in FLIP_ATTRS or lateral_swap(f)
     return bool(words(l["entity"]) & words(f["entity"])) or f["category"] in ("prop", "set_dressing", "wardrobe")
 
 
@@ -30,7 +40,7 @@ def match_strict(f, l):
     if l["shot"] not in (sa, sb):
         return False
     if l["planted_kind"] == "flipped":
-        return f["attribute"] in FLIP_ATTRS or f["category"] in FLIP_ATTRS
+        return f["attribute"] in FLIP_ATTRS or f["category"] in FLIP_ATTRS or lateral_swap(f)
     return bool(words(l["entity"]) & words(f["entity"]))
 
 
