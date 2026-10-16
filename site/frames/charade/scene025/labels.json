@@ -1,0 +1,79 @@
+[
+ {
+  "take": "PLANTED",
+  "shot": 36,
+  "planted_kind": "recolored",
+  "entity": "trousers",
+  "description": "shot 36: recolored trousers"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 37,
+  "planted_kind": "removed",
+  "entity": "sunglasses",
+  "description": "shot 37: removed sunglasses"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 38,
+  "planted_kind": "recolored",
+  "entity": "water bottle",
+  "description": "shot 38: recolored water bottle"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 39,
+  "planted_kind": "removed",
+  "entity": "patio umbrella",
+  "description": "shot 39: removed patio umbrella"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 40,
+  "planted_kind": "recolored",
+  "entity": "jacket",
+  "description": "shot 40: recolored jacket"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 41,
+  "planted_kind": "flipped",
+  "entity": "whole frame",
+  "description": "shot 41: flipped frame mirrored (screen direction)"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 42,
+  "planted_kind": "flipped",
+  "entity": "whole frame",
+  "description": "shot 42: flipped frame mirrored (screen direction)"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 43,
+  "planted_kind": "flipped",
+  "entity": "whole frame",
+  "description": "shot 43: flipped frame mirrored (screen direction)"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 44,
+  "planted_kind": "moved",
+  "entity": "vase",
+  "description": "shot 44: moved vase"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 45,
+  "planted_kind": "removed",
+  "entity": "deck chair",
+  "description": "shot 45: removed deck chair"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 46,
+  "planted_kind": "flipped",
+  "entity": "whole frame",
+  "description": "shot 46: flipped frame mirrored (screen direction)"
+ }
+]

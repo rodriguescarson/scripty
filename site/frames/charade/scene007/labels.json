@@ -1,0 +1,37 @@
+[
+ {
+  "take": "PLANTED",
+  "shot": 10,
+  "planted_kind": "recolored",
+  "entity": "shirt",
+  "description": "shot 10: recolored shirt"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 11,
+  "planted_kind": "flipped",
+  "entity": "whole frame",
+  "description": "shot 11: flipped frame mirrored (screen direction)"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 12,
+  "planted_kind": "removed",
+  "entity": "glasses",
+  "description": "shot 12: removed glasses"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 13,
+  "planted_kind": "flipped",
+  "entity": "whole frame",
+  "description": "shot 13: flipped frame mirrored (screen direction)"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 14,
+  "planted_kind": "recolored",
+  "entity": "tie",
+  "description": "shot 14: recolored tie"
+ }
+]

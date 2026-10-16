@@ -1,0 +1,23 @@
+[
+ {
+  "take": "PLANTED",
+  "shot": 32,
+  "planted_kind": "flipped",
+  "entity": "whole frame",
+  "description": "shot 32: flipped frame mirrored (screen direction)"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 33,
+  "planted_kind": "flipped",
+  "entity": "whole frame",
+  "description": "shot 33: flipped frame mirrored (screen direction)"
+ },
+ {
+  "take": "PLANTED",
+  "shot": 34,
+  "planted_kind": "flipped",
+  "entity": "whole frame",
+  "description": "shot 34: flipped frame mirrored (screen direction)"
+ }
+]
