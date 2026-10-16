@@ -10,3 +10,9 @@ build/
 docs/*.mp4
 docs/eval/*.progress.jsonl
 docs/eval/charade-pilot*
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
